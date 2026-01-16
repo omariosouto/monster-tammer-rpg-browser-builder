@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PixiJS v8 with @pixi/react for 2D rendering
 - GameCanvas component with tile grid visualization
 - 480x320 canvas (2x GBA resolution)
+- Zustand stores for state management:
+  - editorStore: Editor UI state (tools, selection, history)
+  - gameStore: Game runtime state (player, switches, variables)
+  - projectStore: Project data (maps, tilesets, NPCs, events)
+- TanStack Query for async state management
 
 ### Changed
 - Disabled Biome CSS linting/formatting for Tailwind v4 compatibility
