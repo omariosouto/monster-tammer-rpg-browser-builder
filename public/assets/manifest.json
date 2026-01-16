@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "tilesets": [
+    {
+      "id": "placeholder-tileset",
+      "name": "Placeholder Tileset",
+      "path": "/assets/tilesets/placeholder-tileset.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 8,
+      "rows": 8,
+      "tileCount": 64,
+      "description": "Auto-generated placeholder tileset for development"
+    }
+  ],
+  "sprites": {
+    "characters": [
+      {
+        "id": "player",
+        "name": "Player Character",
+        "path": "/assets/sprites/characters/player.png",
+        "frameWidth": 16,
+        "frameHeight": 24,
+        "animations": {
+          "walk_down": { "row": 0, "frames": 4, "speed": 8 },
+          "walk_left": { "row": 1, "frames": 4, "speed": 8 },
+          "walk_right": { "row": 2, "frames": 4, "speed": 8 },
+          "walk_up": { "row": 3, "frames": 4, "speed": 8 }
+        },
+        "description": "Main player character sprite"
+      }
+    ],
+    "npcs": [
+      {
+        "id": "npc-1",
+        "name": "NPC 1 (Red)",
+        "path": "/assets/sprites/npcs/npc-1.png",
+        "frameWidth": 16,
+        "frameHeight": 24,
+        "animations": {
+          "walk_down": { "row": 0, "frames": 4, "speed": 8 },
+          "walk_left": { "row": 1, "frames": 4, "speed": 8 },
+          "walk_right": { "row": 2, "frames": 4, "speed": 8 },
+          "walk_up": { "row": 3, "frames": 4, "speed": 8 }
+        },
+        "description": "Generic NPC character (red)"
+      },
+      {
+        "id": "npc-2",
+        "name": "NPC 2 (Green)",
+        "path": "/assets/sprites/npcs/npc-2.png",
+        "frameWidth": 16,
+        "frameHeight": 24,
+        "animations": {
+          "walk_down": { "row": 0, "frames": 4, "speed": 8 },
+          "walk_left": { "row": 1, "frames": 4, "speed": 8 },
+          "walk_right": { "row": 2, "frames": 4, "speed": 8 },
+          "walk_up": { "row": 3, "frames": 4, "speed": 8 }
+        },
+        "description": "Generic NPC character (green)"
+      },
+      {
+        "id": "npc-3",
+        "name": "NPC 3 (Purple)",
+        "path": "/assets/sprites/npcs/npc-3.png",
+        "frameWidth": 16,
+        "frameHeight": 24,
+        "animations": {
+          "walk_down": { "row": 0, "frames": 4, "speed": 8 },
+          "walk_left": { "row": 1, "frames": 4, "speed": 8 },
+          "walk_right": { "row": 2, "frames": 4, "speed": 8 },
+          "walk_up": { "row": 3, "frames": 4, "speed": 8 }
+        },
+        "description": "Generic NPC character (purple)"
+      }
+    ]
+  }
+}
