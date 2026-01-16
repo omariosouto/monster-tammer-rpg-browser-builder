@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Button, Dialog, Select, Tabs, Input, Label
   - ScrollArea, Separator, Tooltip, DropdownMenu
 - Decision records documentation structure
+- PixiJS v8 with @pixi/react for 2D rendering
+- GameCanvas component with tile grid visualization
+- 480x320 canvas (2x GBA resolution)
 
 ### Changed
 - Disabled Biome CSS linting/formatting for Tailwind v4 compatibility
