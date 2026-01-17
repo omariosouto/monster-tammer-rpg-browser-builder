@@ -135,24 +135,78 @@ export function EditorCanvas() {
     getTileSourceCoords,
   ]);
 
-  // Handle canvas click for painting
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!currentMap || !activeLayerId) return;
+  // Track if mouse is being dragged for continuous painting
+  const isPaintingRef = useRef(false);
+  const lastPaintedTileRef = useRef<{ x: number; y: number } | null>(null);
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Get tile coordinates from mouse event
+  const getTileCoords = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / scaledTileSize);
-    const y = Math.floor((e.clientY - rect.top) / scaledTileSize);
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / scaledTileSize);
+      const y = Math.floor((e.clientY - rect.top) / scaledTileSize);
 
-    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return;
+      if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return null;
+      return { x, y };
+    },
+    [scaledTileSize, mapWidth, mapHeight],
+  );
 
-    if (activeTool === "paint" && selectedTiles.length > 0) {
-      setTile(currentMap.id, activeLayerId, x, y, selectedTiles[0]);
-    } else if (activeTool === "erase") {
-      setTile(currentMap.id, activeLayerId, x, y, 0);
-    }
+  // Paint or erase at the given coordinates
+  const paintAtCoords = useCallback(
+    (x: number, y: number) => {
+      if (!currentMap || !activeLayerId) return;
+
+      if (activeTool === "paint" && selectedTiles.length > 0) {
+        setTile(currentMap.id, activeLayerId, x, y, selectedTiles[0]);
+      } else if (activeTool === "erase") {
+        setTile(currentMap.id, activeLayerId, x, y, 0);
+      }
+    },
+    [currentMap, activeLayerId, activeTool, selectedTiles, setTile],
+  );
+
+  // Handle mouse down - start painting
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (activeTool !== "paint" && activeTool !== "erase") return;
+
+    const coords = getTileCoords(e);
+    if (!coords) return;
+
+    isPaintingRef.current = true;
+    lastPaintedTileRef.current = coords;
+    paintAtCoords(coords.x, coords.y);
+  };
+
+  // Handle mouse move - continue painting while dragging
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isPaintingRef.current) return;
+    if (activeTool !== "paint" && activeTool !== "erase") return;
+
+    const coords = getTileCoords(e);
+    if (!coords) return;
+
+    // Only paint if we moved to a different tile
+    const last = lastPaintedTileRef.current;
+    if (last && last.x === coords.x && last.y === coords.y) return;
+
+    lastPaintedTileRef.current = coords;
+    paintAtCoords(coords.x, coords.y);
+  };
+
+  // Handle mouse up - stop painting
+  const handleMouseUp = () => {
+    isPaintingRef.current = false;
+    lastPaintedTileRef.current = null;
+  };
+
+  // Handle mouse leave - stop painting when cursor leaves canvas
+  const handleMouseLeave = () => {
+    isPaintingRef.current = false;
+    lastPaintedTileRef.current = null;
   };
 
   return (
@@ -165,7 +219,10 @@ export function EditorCanvas() {
         width={canvasWidth}
         height={canvasHeight}
         className="border border-border shadow-lg cursor-crosshair"
-        onClick={handleCanvasClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         style={{
           imageRendering: "pixelated",
         }}
