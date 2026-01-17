@@ -368,6 +368,8 @@ export function EditorCanvas() {
         position: { x, y },
         spritesheet: "npc-1",
         direction: "down" as const,
+        behavior: "stationary" as const,
+        movementSpeed: 2,
       };
 
       addNPC(currentMap.id, newNpc);

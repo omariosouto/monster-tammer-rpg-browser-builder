@@ -12,15 +12,93 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { useEditorStore } from "@/store/editorStore";
-import { useProjectStore } from "@/store/projectStore";
+import {
+  type NPCBehavior,
+  type NPCDirection,
+  useProjectStore,
+} from "@/store/projectStore";
+
+const NPC_SPRITE_WIDTH = 16;
+const NPC_SPRITE_HEIGHT = 24;
+
+const AVAILABLE_SPRITES = [
+  { id: "npc-1", name: "NPC 1", path: "/assets/sprites/npcs/npc-1.png" },
+  { id: "npc-2", name: "NPC 2", path: "/assets/sprites/npcs/npc-2.png" },
+  { id: "npc-3", name: "NPC 3", path: "/assets/sprites/npcs/npc-3.png" },
+  {
+    id: "player",
+    name: "Player",
+    path: "/assets/sprites/characters/player.png",
+  },
+];
+
+const DIRECTIONS: { value: NPCDirection; label: string }[] = [
+  { value: "down", label: "Down" },
+  { value: "up", label: "Up" },
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" },
+];
+
+const BEHAVIORS: { value: NPCBehavior; label: string; description: string }[] =
+  [
+    { value: "stationary", label: "Stationary", description: "Stays in place" },
+    { value: "random", label: "Random", description: "Wanders randomly" },
+    { value: "patrol", label: "Patrol", description: "Follows a path" },
+  ];
 
 export function PropertiesPanel() {
   const [collapsed, setCollapsed] = useState(false);
-  const { selectedEntityId, selectedEntityType } = useEditorStore();
-  const { project } = useProjectStore();
+  const { selectedEntityId, selectedEntityType, currentMapId } =
+    useEditorStore();
+  const { project, updateNPC, updateMap } = useProjectStore();
 
-  const currentMap = project?.maps[0];
+  const currentMap = currentMapId
+    ? project?.maps.find((m) => m.id === currentMapId)
+    : project?.maps[0];
+
+  // Get selected NPC
+  const selectedNpc =
+    selectedEntityType === "npc" && selectedEntityId
+      ? currentMap?.npcs.find((n) => n.id === selectedEntityId)
+      : null;
+
+  // Get direction row for sprite preview (0=down, 1=left, 2=right, 3=up)
+  const getDirectionRow = (direction: NPCDirection) => {
+    switch (direction) {
+      case "down":
+        return 0;
+      case "left":
+        return 1;
+      case "right":
+        return 2;
+      case "up":
+        return 3;
+      default:
+        return 0;
+    }
+  };
+
+  // Handle NPC property updates
+  const handleUpdateNpc = (
+    updates: Partial<{
+      name: string;
+      spritesheet: string;
+      direction: NPCDirection;
+      behavior: NPCBehavior;
+      movementSpeed: number;
+    }>,
+  ) => {
+    if (!currentMap || !selectedEntityId) return;
+    updateNPC(currentMap.id, selectedEntityId, updates);
+  };
+
+  // Handle map property updates
+  const handleUpdateMap = (updates: Partial<{ name: string }>) => {
+    if (!currentMap) return;
+    updateMap(currentMap.id, updates);
+  };
 
   if (collapsed) {
     return (
@@ -36,6 +114,10 @@ export function PropertiesPanel() {
       </aside>
     );
   }
+
+  const spriteInfo = AVAILABLE_SPRITES.find(
+    (s) => s.id === selectedNpc?.spritesheet,
+  );
 
   return (
     <aside className="w-64 border-l bg-background flex flex-col">
@@ -68,7 +150,7 @@ export function PropertiesPanel() {
                   id="map-name"
                   className="h-8 text-xs"
                   value={currentMap?.name ?? ""}
-                  readOnly
+                  onChange={(e) => handleUpdateMap({ name: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -102,67 +184,183 @@ export function PropertiesPanel() {
 
           <Separator />
 
-          {/* Entity Properties */}
-          {selectedEntityId && selectedEntityType && (
+          {/* NPC Properties */}
+          {selectedNpc && (
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {selectedEntityType === "npc" ? "NPC" : "Event"}
+                NPC
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Sprite Preview */}
+                <div className="flex flex-col items-center gap-2 p-3 bg-muted/50 rounded-md">
+                  <div
+                    className="border border-border rounded shadow-sm"
+                    style={{
+                      width: NPC_SPRITE_WIDTH * 3,
+                      height: NPC_SPRITE_HEIGHT * 3,
+                      backgroundImage: spriteInfo
+                        ? `url(${spriteInfo.path})`
+                        : undefined,
+                      backgroundPosition: `-0px -${getDirectionRow(selectedNpc.direction) * NPC_SPRITE_HEIGHT * 3}px`,
+                      backgroundSize: `${NPC_SPRITE_WIDTH * 4 * 3}px auto`,
+                      imageRendering: "pixelated",
+                      backgroundColor: spriteInfo ? undefined : "#666",
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {selectedNpc.name}
+                  </span>
+                </div>
+
+                {/* Name */}
                 <div className="space-y-1">
-                  <Label htmlFor="entity-name" className="text-xs">
+                  <Label htmlFor="npc-name" className="text-xs">
                     Name
                   </Label>
                   <Input
-                    id="entity-name"
+                    id="npc-name"
                     className="h-8 text-xs"
-                    placeholder="Entity name"
+                    value={selectedNpc.name}
+                    onChange={(e) => handleUpdateNpc({ name: e.target.value })}
                   />
                 </div>
+
+                {/* Position (read-only) */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label htmlFor="entity-x" className="text-xs">
+                    <Label htmlFor="npc-x" className="text-xs">
                       X
                     </Label>
                     <Input
-                      id="entity-x"
+                      id="npc-x"
                       type="number"
                       className="h-8 text-xs"
-                      value={0}
+                      value={selectedNpc.position.x}
                       readOnly
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="entity-y" className="text-xs">
+                    <Label htmlFor="npc-y" className="text-xs">
                       Y
                     </Label>
                     <Input
-                      id="entity-y"
+                      id="npc-y"
                       type="number"
                       className="h-8 text-xs"
-                      value={0}
+                      value={selectedNpc.position.y}
                       readOnly
                     />
                   </div>
                 </div>
-                {selectedEntityType === "npc" && (
-                  <div className="space-y-1">
-                    <Label htmlFor="npc-direction" className="text-xs">
-                      Direction
+
+                {/* Sprite Selector */}
+                <div className="space-y-1">
+                  <Label htmlFor="npc-sprite" className="text-xs">
+                    Sprite
+                  </Label>
+                  <Select
+                    value={selectedNpc.spritesheet}
+                    onValueChange={(value) =>
+                      handleUpdateNpc({ spritesheet: value })
+                    }
+                  >
+                    <SelectTrigger id="npc-sprite" className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_SPRITES.map((sprite) => (
+                        <SelectItem key={sprite.id} value={sprite.id}>
+                          {sprite.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Direction Selector */}
+                <div className="space-y-1">
+                  <Label htmlFor="npc-direction" className="text-xs">
+                    Direction
+                  </Label>
+                  <Select
+                    value={selectedNpc.direction}
+                    onValueChange={(value: NPCDirection) =>
+                      handleUpdateNpc({ direction: value })
+                    }
+                  >
+                    <SelectTrigger id="npc-direction" className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DIRECTIONS.map((dir) => (
+                        <SelectItem key={dir.value} value={dir.value}>
+                          {dir.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                {/* Behavior Type */}
+                <div className="space-y-1">
+                  <Label htmlFor="npc-behavior" className="text-xs">
+                    Behavior
+                  </Label>
+                  <Select
+                    value={selectedNpc.behavior}
+                    onValueChange={(value: NPCBehavior) =>
+                      handleUpdateNpc({ behavior: value })
+                    }
+                  >
+                    <SelectTrigger id="npc-behavior" className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BEHAVIORS.map((b) => (
+                        <SelectItem key={b.value} value={b.value}>
+                          <div className="flex flex-col">
+                            <span>{b.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {
+                      BEHAVIORS.find((b) => b.value === selectedNpc.behavior)
+                        ?.description
+                    }
+                  </p>
+                </div>
+
+                {/* Movement Speed Slider */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="npc-speed" className="text-xs">
+                      Movement Speed
                     </Label>
-                    <Select defaultValue="down">
-                      <SelectTrigger id="npc-direction" className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="up">Up</SelectItem>
-                        <SelectItem value="down">Down</SelectItem>
-                        <SelectItem value="left">Left</SelectItem>
-                        <SelectItem value="right">Right</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedNpc.movementSpeed}
+                    </span>
                   </div>
-                )}
+                  <Slider
+                    id="npc-speed"
+                    min={1}
+                    max={5}
+                    step={1}
+                    value={[selectedNpc.movementSpeed]}
+                    onValueChange={(value) =>
+                      handleUpdateNpc({ movementSpeed: value[0] })
+                    }
+                    disabled={selectedNpc.behavior === "stationary"}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                </div>
               </div>
             </section>
           )}
