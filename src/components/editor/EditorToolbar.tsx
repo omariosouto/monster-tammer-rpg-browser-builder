@@ -1,6 +1,7 @@
 import {
   Eraser,
   Grid3X3,
+  Home,
   Layers,
   MousePointer2,
   PaintBucket,
@@ -14,6 +15,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { parseAsStringEnum, useQueryState } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -44,14 +46,39 @@ const tileTools: { id: EditorTool; icon: React.ReactNode; label: string }[] = [
 const entityTools: { id: EditorTool; icon: React.ReactNode; label: string }[] =
   [{ id: "npc", icon: <User className="h-4 w-4" />, label: "Place NPC" }];
 
+type AppMode = "home" | "editor" | "play";
+const modeParser = parseAsStringEnum<AppMode>(["home", "editor", "play"]);
+
 export function EditorToolbar() {
   const { activeTool, setActiveTool, zoom, setZoom, gridVisible, toggleGrid } =
     useEditorStore();
   const { handleUndo, handleRedo, canUndo, canRedo } = useUndoRedo();
+  const [, setMode] = useQueryState("mode", modeParser);
+
+  const handleCloseEditor = () => {
+    setMode("home");
+  };
 
   return (
     <header className="h-12 border-b bg-background flex items-center px-2 gap-1">
       <TooltipProvider delayDuration={300}>
+        {/* Close Editor */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleCloseEditor}
+            >
+              <Home className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Back to Home</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
         {/* File Actions */}
         <div className="flex items-center gap-1">
           <Tooltip>
