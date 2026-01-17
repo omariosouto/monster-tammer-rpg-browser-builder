@@ -184,13 +184,18 @@ describe("projectStore", () => {
         tileCount: 64,
       };
 
+      const initialCount =
+        useProjectStore.getState().project?.tilesets.length ?? 0;
+
       act(() => {
         useProjectStore.getState().addTileset(tileset);
       });
 
       const tilesets = useProjectStore.getState().project?.tilesets;
-      expect(tilesets).toHaveLength(1);
-      expect(tilesets?.[0].name).toBe("Grass Tiles");
+      expect(tilesets).toHaveLength(initialCount + 1);
+      expect(tilesets?.find((t) => t.id === "tileset-1")?.name).toBe(
+        "Grass Tiles",
+      );
     });
 
     it("should update a tileset", () => {
@@ -211,7 +216,9 @@ describe("projectStore", () => {
           .updateTileset("tileset-1", { name: "Updated" });
       });
 
-      const updated = useProjectStore.getState().project?.tilesets[0];
+      const updated = useProjectStore
+        .getState()
+        .project?.tilesets.find((t) => t.id === "tileset-1");
       expect(updated?.name).toBe("Updated");
     });
 
@@ -226,12 +233,17 @@ describe("projectStore", () => {
         tileCount: 64,
       };
 
+      const initialCount =
+        useProjectStore.getState().project?.tilesets.length ?? 0;
+
       act(() => {
         useProjectStore.getState().addTileset(tileset);
         useProjectStore.getState().deleteTileset("tileset-1");
       });
 
-      expect(useProjectStore.getState().project?.tilesets).toHaveLength(0);
+      const tilesets = useProjectStore.getState().project?.tilesets;
+      expect(tilesets).toHaveLength(initialCount);
+      expect(tilesets?.find((t) => t.id === "tileset-1")).toBeUndefined();
     });
   });
 

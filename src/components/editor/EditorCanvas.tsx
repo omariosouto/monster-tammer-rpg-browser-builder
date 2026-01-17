@@ -1,16 +1,34 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
 
 const TILE_SIZE = 16;
+const TILESET_COLUMNS = 8;
 
 export function EditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
+    null,
+  );
 
   const { zoom, gridVisible, activeLayerId, activeTool, selectedTiles } =
     useEditorStore();
   const { project, setTile } = useProjectStore();
+
+  // Get the current tileset
+  const currentTileset = project?.tilesets[0];
+  const tilesetImageUrl =
+    currentTileset?.image ?? "/assets/tilesets/placeholder-tileset.png";
+
+  // Load tileset image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      setTilesetImage(img);
+    };
+    img.src = tilesetImageUrl;
+  }, [tilesetImageUrl]);
 
   const currentMap = project?.maps[0];
   const mapWidth = currentMap?.width ?? 20;
@@ -20,6 +38,18 @@ export function EditorCanvas() {
   const canvasWidth = mapWidth * scaledTileSize;
   const canvasHeight = mapHeight * scaledTileSize;
 
+  // Get source coordinates for a tile from the tileset
+  const getTileSourceCoords = useCallback((tileId: number) => {
+    // tileId is 1-indexed (0 means empty), so subtract 1 for array index
+    const tileIndex = tileId - 1;
+    const col = tileIndex % TILESET_COLUMNS;
+    const row = Math.floor(tileIndex / TILESET_COLUMNS);
+    return {
+      sx: col * TILE_SIZE,
+      sy: row * TILE_SIZE,
+    };
+  }, []);
+
   // Draw the canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,6 +57,9 @@ export function EditorCanvas() {
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Disable image smoothing for pixel-perfect rendering
+    ctx.imageSmoothingEnabled = false;
 
     // Clear canvas
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -36,7 +69,7 @@ export function EditorCanvas() {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Draw layers
-    if (currentMap) {
+    if (currentMap && tilesetImage) {
       for (const layer of currentMap.layers) {
         if (!layer.visible) continue;
 
@@ -48,10 +81,16 @@ export function EditorCanvas() {
             const tileId = layer.data[tileIndex];
 
             if (tileId > 0) {
-              // Draw tile with placeholder color based on tileId
-              const hue = (tileId * 37) % 360;
-              ctx.fillStyle = `hsl(${hue}, 40%, 50%)`;
-              ctx.fillRect(
+              // Get source coordinates from tileset
+              const { sx, sy } = getTileSourceCoords(tileId);
+
+              // Draw tile from tileset image
+              ctx.drawImage(
+                tilesetImage,
+                sx,
+                sy,
+                TILE_SIZE,
+                TILE_SIZE,
                 x * scaledTileSize,
                 y * scaledTileSize,
                 scaledTileSize,
@@ -92,6 +131,8 @@ export function EditorCanvas() {
     mapHeight,
     scaledTileSize,
     gridVisible,
+    tilesetImage,
+    getTileSourceCoords,
   ]);
 
   // Handle canvas click for painting

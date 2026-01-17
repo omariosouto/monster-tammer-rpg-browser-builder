@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
+import { parseAsStringEnum, useQueryState } from "nuqs";
+import { NuqsAdapter } from "nuqs/adapters/react";
+import { useEffect } from "react";
 import { GameCanvas } from "@/components/engine/GameCanvas";
 import { Button } from "@/components/ui/button";
 import { EditorPage } from "@/pages/EditorPage";
 import { useProjectStore } from "@/store/projectStore";
 
 type AppMode = "home" | "editor" | "play";
+
+const modeParser = parseAsStringEnum<AppMode>([
+  "home",
+  "editor",
+  "play",
+]).withDefault("home");
 
 function HomePage({ onModeChange }: { onModeChange: (mode: AppMode) => void }) {
   const { createProject } = useProjectStore();
@@ -43,22 +51,30 @@ function HomePage({ onModeChange }: { onModeChange: (mode: AppMode) => void }) {
   );
 }
 
-function App() {
-  const [mode, setMode] = useState<AppMode>("home");
-  const { project } = useProjectStore();
+function AppContent() {
+  const [mode, setMode] = useQueryState("mode", modeParser);
+  const { project, createProject } = useProjectStore();
 
-  // If we're in editor mode but no project, go back to home
+  // Auto-create project when entering editor mode via URL
   useEffect(() => {
     if (mode === "editor" && !project) {
-      setMode("home");
+      createProject("New Project");
     }
-  }, [mode, project]);
+  }, [mode, project, createProject]);
 
-  if (mode === "editor" && project) {
+  if (mode === "editor") {
     return <EditorPage />;
   }
 
   return <HomePage onModeChange={setMode} />;
+}
+
+function App() {
+  return (
+    <NuqsAdapter>
+      <AppContent />
+    </NuqsAdapter>
+  );
 }
 
 export default App;

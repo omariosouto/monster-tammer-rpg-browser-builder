@@ -1,10 +1,48 @@
+import { useEffect } from "react";
 import { EditorCanvas } from "@/components/editor/EditorCanvas";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { LayerPanel } from "@/components/editor/LayerPanel";
 import { PropertiesPanel } from "@/components/editor/PropertiesPanel";
 import { TilePalette } from "@/components/editor/TilePalette";
+import { useEditorStore } from "@/store/editorStore";
+import { useProjectStore } from "@/store/projectStore";
 
 export function EditorPage() {
+  const { project, createProject } = useProjectStore();
+  const {
+    activeLayerId,
+    setActiveLayerId,
+    setActiveTool,
+    selectTiles,
+    activeTool,
+  } = useEditorStore();
+
+  // Create a default project if none exists
+  useEffect(() => {
+    if (!project) {
+      createProject("My RPG Game");
+    }
+  }, [project, createProject]);
+
+  // Initialize editor state when project loads
+  useEffect(() => {
+    const currentMap = project?.maps[0];
+    if (currentMap && !activeLayerId) {
+      // Auto-select first layer
+      const firstLayer = currentMap.layers[0];
+      if (firstLayer) {
+        setActiveLayerId(firstLayer.id);
+      }
+    }
+  }, [project, activeLayerId, setActiveLayerId]);
+
+  // Set paint tool and first tile on mount for better UX
+  useEffect(() => {
+    if (activeTool === "select") {
+      setActiveTool("paint");
+      selectTiles([1]); // Select first tile by default
+    }
+  }, [activeTool, setActiveTool, selectTiles]);
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
       {/* Top Toolbar */}

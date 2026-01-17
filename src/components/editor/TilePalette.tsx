@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -11,9 +11,16 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useEditorStore } from "@/store/editorStore";
+import { useProjectStore } from "@/store/projectStore";
+
+// Tileset configuration from manifest
+const TILE_SIZE = 16;
+const TILESET_COLUMNS = 8;
+const TILESET_ROWS = 8;
+const TILE_COUNT = TILESET_COLUMNS * TILESET_ROWS;
 
 // Static array of tile indices - stable for React keys
-const TILE_INDICES = Array.from({ length: 64 }, (_, i) => i);
+const TILE_INDICES = Array.from({ length: TILE_COUNT }, (_, i) => i);
 
 export function TilePalette() {
   const [collapsed, setCollapsed] = useState(false);
@@ -23,13 +30,40 @@ export function TilePalette() {
     selectedTilesetId,
     setSelectedTilesetId,
   } = useEditorStore();
+  const { project } = useProjectStore();
 
-  // Mock tilesets for now - will be loaded from project store
-  const tilesets = [{ id: "placeholder-tileset", name: "Placeholder Tileset" }];
+  // Get tilesets from project, fallback to placeholder
+  const tilesets = project?.tilesets ?? [
+    {
+      id: "placeholder-tileset",
+      name: "Placeholder Tileset",
+      image: "/assets/tilesets/placeholder-tileset.png",
+    },
+  ];
 
-  // Mock tile selection
+  // Get the currently selected tileset
+  const currentTileset =
+    tilesets.find((t) => t.id === selectedTilesetId) ?? tilesets[0];
+  const tilesetImageUrl =
+    currentTileset?.image ?? "/assets/tilesets/placeholder-tileset.png";
+
+  // Auto-select first tileset if none selected
+  useEffect(() => {
+    if (!selectedTilesetId && tilesets.length > 0) {
+      setSelectedTilesetId(tilesets[0].id);
+    }
+  }, [selectedTilesetId, tilesets, setSelectedTilesetId]);
+
+  // Handle tile selection - select tile index + 1 (0 means empty)
   const handleTileClick = (tileIndex: number) => {
-    selectTiles([tileIndex]);
+    selectTiles([tileIndex + 1]);
+  };
+
+  // Calculate background position for a tile
+  const getTileBackgroundPosition = (tileIndex: number) => {
+    const col = tileIndex % TILESET_COLUMNS;
+    const row = Math.floor(tileIndex / TILESET_COLUMNS);
+    return `-${col * TILE_SIZE}px -${row * TILE_SIZE}px`;
   };
 
   if (collapsed) {
@@ -92,15 +126,18 @@ export function TilePalette() {
                 key={tileIndex}
                 type="button"
                 className={`w-6 h-6 border transition-colors ${
-                  selectedTiles.includes(tileIndex)
-                    ? "border-primary bg-primary/20"
+                  selectedTiles.includes(tileIndex + 1)
+                    ? "border-primary ring-2 ring-primary"
                     : "border-transparent hover:border-muted-foreground/30"
                 }`}
                 style={{
-                  backgroundColor: `hsl(${(tileIndex * 5.625) % 360}, 40%, ${50 + (tileIndex % 3) * 10}%)`,
+                  backgroundImage: `url(${tilesetImageUrl})`,
+                  backgroundPosition: getTileBackgroundPosition(tileIndex),
+                  backgroundSize: `${TILESET_COLUMNS * TILE_SIZE}px ${TILESET_ROWS * TILE_SIZE}px`,
+                  imageRendering: "pixelated",
                 }}
                 onClick={() => handleTileClick(tileIndex)}
-                title={`Tile ${tileIndex}`}
+                title={`Tile ${tileIndex + 1}`}
               />
             ))}
           </div>
@@ -111,8 +148,8 @@ export function TilePalette() {
       <div className="h-10 border-t flex items-center px-3">
         <span className="text-xs text-muted-foreground">
           {selectedTiles.length > 0
-            ? `Selected: ${selectedTiles.join(", ")}`
-            : "No tile selected"}
+            ? `Selected: Tile ${selectedTiles.join(", ")}`
+            : "Click a tile to select"}
         </span>
       </div>
     </aside>
