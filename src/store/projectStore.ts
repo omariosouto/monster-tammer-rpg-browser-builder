@@ -152,7 +152,17 @@ const createDefaultProject = (name: string): Project => ({
     startMapId: "",
     startPosition: { x: 0, y: 0 },
   },
-  tilesets: [],
+  tilesets: [
+    {
+      id: "placeholder-tileset",
+      name: "Placeholder Tileset",
+      image: "/assets/tilesets/placeholder-tileset.png",
+      tileWidth: 16,
+      tileHeight: 16,
+      columns: 8,
+      tileCount: 64,
+    },
+  ],
   maps: [],
 });
 
