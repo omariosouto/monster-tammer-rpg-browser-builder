@@ -2,7 +2,6 @@ import { Plus, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -12,10 +11,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConditionEditor } from "@/components/editor/ConditionEditor";
 import { useEditorStore } from "@/store/editorStore";
 import {
   type CommandType,
-  type ConditionType,
   type EventCommand,
   type EventCondition,
   type EventPage,
@@ -43,14 +42,6 @@ const TRIGGERS: { value: EventTrigger; label: string; description: string }[] =
     },
   ];
 
-const CONDITION_TYPES: { value: ConditionType; label: string }[] = [
-  { value: "switch", label: "Switch" },
-  { value: "variable", label: "Variable" },
-  { value: "hasItem", label: "Has Item" },
-  { value: "hasPokemon", label: "Has Pokemon" },
-  { value: "partySize", label: "Party Size" },
-];
-
 const COMMAND_TYPES: { value: CommandType; label: string }[] = [
   { value: "showMessage", label: "Show Message" },
   { value: "showChoices", label: "Show Choices" },
@@ -58,7 +49,7 @@ const COMMAND_TYPES: { value: CommandType; label: string }[] = [
   { value: "setVariable", label: "Set Variable" },
   { value: "conditional", label: "Conditional Branch" },
   { value: "teleport", label: "Teleport" },
-  { value: "givePokemon", label: "Give Pokemon" },
+  { value: "giveMonster", label: "Give Monster" },
 ];
 
 interface EventEditorProps {
@@ -193,24 +184,6 @@ export function EventEditor({ event, mapId }: EventEditorProps) {
     });
   };
 
-  // Get human-readable condition text
-  const getConditionText = (condition: EventCondition): string => {
-    switch (condition.type) {
-      case "switch":
-        return `Switch [${condition.switchId || "?"}] is ${condition.switchValue ? "ON" : "OFF"}`;
-      case "variable":
-        return `Variable [${condition.variableId || "?"}] ${condition.variableOp || "=="} ${condition.variableValue ?? 0}`;
-      case "hasItem":
-        return `Has Item [${condition.itemId || "?"}]`;
-      case "hasPokemon":
-        return `Has Pokemon [${condition.pokemonId || "any"}]`;
-      case "partySize":
-        return `Party Size ${condition.partySizeOp || "=="} ${condition.partySizeValue ?? 0}`;
-      default:
-        return "Unknown condition";
-    }
-  };
-
   // Get human-readable command text
   const getCommandText = (command: EventCommand): string => {
     switch (command.type) {
@@ -226,8 +199,8 @@ export function EventEditor({ event, mapId }: EventEditorProps) {
         return "Conditional Branch";
       case "teleport":
         return `Teleport to (${command.teleportX ?? "?"}, ${command.teleportY ?? "?"})`;
-      case "givePokemon":
-        return `Give Pokemon [${command.pokemonId || "?"}] Lv.${command.pokemonLevel ?? 5}`;
+      case "giveMonster":
+        return `Give Monster [${command.monsterId || "?"}] Lv.${command.monsterLevel ?? 5}`;
       default:
         return "Unknown command";
     }
@@ -417,45 +390,18 @@ export function EventEditor({ event, mapId }: EventEditorProps) {
                         No conditions (always active)
                       </p>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {page.conditions.map((condition) => (
-                          <div
+                          <ConditionEditor
                             key={condition.id}
-                            className="flex items-center gap-1 p-1 bg-muted/50 rounded text-xs"
-                          >
-                            <Select
-                              value={condition.type}
-                              onValueChange={(value: ConditionType) =>
-                                handleUpdateCondition(page.id, condition.id, {
-                                  type: value,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-6 w-24 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CONDITION_TYPES.map((ct) => (
-                                  <SelectItem key={ct.value} value={ct.value}>
-                                    {ct.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <span className="flex-1 text-xs truncate">
-                              {getConditionText(condition)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0"
-                              onClick={() =>
-                                handleRemoveCondition(page.id, condition.id)
-                              }
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                            condition={condition}
+                            onUpdate={(updates) =>
+                              handleUpdateCondition(page.id, condition.id, updates)
+                            }
+                            onRemove={() =>
+                              handleRemoveCondition(page.id, condition.id)
+                            }
+                          />
                         ))}
                       </div>
                     )}
