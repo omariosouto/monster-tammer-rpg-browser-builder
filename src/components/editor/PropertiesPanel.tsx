@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { EventEditor } from "@/components/editor/EventEditor";
 import { useEditorStore } from "@/store/editorStore";
 import {
   type NPCBehavior,
@@ -62,6 +63,12 @@ export function PropertiesPanel() {
   const selectedNpc =
     selectedEntityType === "npc" && selectedEntityId
       ? currentMap?.npcs.find((n) => n.id === selectedEntityId)
+      : null;
+
+  // Get selected Event
+  const selectedEvent =
+    selectedEntityType === "event" && selectedEntityId
+      ? currentMap?.events.find((e) => e.id === selectedEntityId)
       : null;
 
   // Get direction row for sprite preview (0=down, 1=left, 2=right, 3=up)
@@ -363,6 +370,14 @@ export function PropertiesPanel() {
                 </div>
               </div>
             </section>
+          )}
+
+          {/* Event Properties */}
+          {selectedEvent && currentMap && (
+            <>
+              <Separator />
+              <EventEditor event={selectedEvent} mapId={currentMap.id} />
+            </>
           )}
 
           {!selectedEntityId && (

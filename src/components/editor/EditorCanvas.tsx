@@ -518,6 +518,13 @@ export function EditorCanvas() {
     (x: number, y: number): string | null => {
       if (!currentMap) return null;
 
+      // Create default page with empty conditions and commands
+      const defaultPage = {
+        id: crypto.randomUUID(),
+        conditions: [],
+        commands: [],
+      };
+
       const newEvent = {
         id: crypto.randomUUID(),
         name: `Event ${currentMap.events.length + 1}`,
@@ -525,6 +532,7 @@ export function EditorCanvas() {
         width: 1,
         height: 1,
         trigger: "action" as EventTrigger,
+        pages: [defaultPage],
       };
 
       addEvent(currentMap.id, newEvent);
