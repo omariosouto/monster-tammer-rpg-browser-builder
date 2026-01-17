@@ -48,6 +48,69 @@ interface NPCInstance {
 
 export type EventTrigger = "action" | "touch" | "autorun" | "parallel";
 
+// Condition types for event pages
+export type ConditionType =
+  | "switch"
+  | "variable"
+  | "hasItem"
+  | "hasPokemon"
+  | "partySize";
+
+export interface EventCondition {
+  id: string;
+  type: ConditionType;
+  // Parameters vary by type
+  switchId?: string;
+  switchValue?: boolean;
+  variableId?: string;
+  variableOp?: "==" | "!=" | ">" | "<" | ">=" | "<=";
+  variableValue?: number;
+  itemId?: string;
+  pokemonId?: string;
+  partySizeOp?: "==" | "!=" | ">" | "<" | ">=" | "<=";
+  partySizeValue?: number;
+}
+
+// Command types for event pages
+export type CommandType =
+  | "showMessage"
+  | "showChoices"
+  | "setSwitch"
+  | "setVariable"
+  | "conditional"
+  | "teleport"
+  | "givePokemon";
+
+export interface EventCommand {
+  id: string;
+  type: CommandType;
+  // Parameters vary by type
+  message?: string;
+  choices?: string[];
+  choiceResults?: string[]; // Command IDs to jump to
+  switchId?: string;
+  switchValue?: boolean;
+  variableId?: string;
+  variableOp?: "=" | "+=" | "-=" | "*=" | "/=";
+  variableValue?: number;
+  condition?: EventCondition;
+  thenCommands?: string[]; // Command IDs for true branch
+  elseCommands?: string[]; // Command IDs for false branch
+  teleportMapId?: string;
+  teleportX?: number;
+  teleportY?: number;
+  pokemonId?: string;
+  pokemonLevel?: number;
+}
+
+export interface EventPage {
+  id: string;
+  conditions: EventCondition[];
+  commands: EventCommand[];
+  // Page-specific appearance/graphic (optional)
+  graphic?: string;
+}
+
 interface MapEvent {
   id: string;
   name: string;
@@ -55,6 +118,7 @@ interface MapEvent {
   width: number;
   height: number;
   trigger: EventTrigger;
+  pages: EventPage[];
 }
 
 interface GameMap {

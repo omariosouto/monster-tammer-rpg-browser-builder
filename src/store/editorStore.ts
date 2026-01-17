@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { EventPage } from "./projectStore";
 
 export type EditorTool =
   | "select"
@@ -99,6 +100,7 @@ type EventAddEntry = {
     width: number;
     height: number;
     trigger: "action" | "touch" | "autorun" | "parallel";
+    pages: EventPage[];
   };
 };
 
@@ -112,6 +114,7 @@ type EventDeleteEntry = {
     width: number;
     height: number;
     trigger: "action" | "touch" | "autorun" | "parallel";
+    pages: EventPage[];
   };
 };
 
