@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type HistoryEntry, useEditorStore } from "@/store/editorStore";
-import { useProjectStore } from "@/store/projectStore";
+import { type EventTrigger, useProjectStore } from "@/store/projectStore";
 
 const TILE_SIZE = 16;
 const TILESET_COLUMNS = 8;
@@ -27,8 +27,17 @@ export function EditorCanvas() {
     selectEntity,
     pushHistory,
   } = useEditorStore();
-  const { project, setTile, getTileAt, addNPC, updateNPC, deleteNPC } =
-    useProjectStore();
+  const {
+    project,
+    setTile,
+    getTileAt,
+    addNPC,
+    updateNPC,
+    deleteNPC,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+  } = useProjectStore();
 
   // Get the current tileset
   const currentTileset = project?.tilesets[0];
@@ -257,6 +266,61 @@ export function EditorCanvas() {
         ctx.closePath();
         ctx.fill();
       }
+
+      // Draw Events
+      for (const event of currentMap.events) {
+        const eventX = event.position.x * scaledTileSize;
+        const eventY = event.position.y * scaledTileSize;
+        const eventWidth = event.width * scaledTileSize;
+        const eventHeight = event.height * scaledTileSize;
+
+        // Draw semi-transparent event zone
+        ctx.fillStyle = "rgba(255, 200, 0, 0.3)";
+        ctx.fillRect(eventX, eventY, eventWidth, eventHeight);
+
+        // Draw border
+        const isSelected = selectedEntityId === event.id;
+        ctx.strokeStyle = isSelected ? "#00ff00" : "rgba(255, 200, 0, 0.8)";
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.strokeRect(eventX, eventY, eventWidth, eventHeight);
+
+        // Draw trigger icon in center
+        ctx.fillStyle = isSelected ? "#00ff00" : "#ffcc00";
+        const iconSize = Math.min(scaledTileSize * 0.6, 16);
+        const iconX = eventX + eventWidth / 2;
+        const iconY = eventY + eventHeight / 2;
+
+        // Draw lightning bolt icon
+        ctx.beginPath();
+        ctx.moveTo(iconX + iconSize * 0.1, iconY - iconSize * 0.4);
+        ctx.lineTo(iconX - iconSize * 0.2, iconY);
+        ctx.lineTo(iconX + iconSize * 0.1, iconY);
+        ctx.lineTo(iconX - iconSize * 0.1, iconY + iconSize * 0.4);
+        ctx.lineTo(iconX + iconSize * 0.2, iconY);
+        ctx.lineTo(iconX - iconSize * 0.1, iconY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw resize handles if selected
+        if (isSelected) {
+          const handleSize = 6;
+          ctx.fillStyle = "#00ff00";
+
+          // SE handle (bottom-right)
+          ctx.fillRect(
+            eventX + eventWidth - handleSize / 2,
+            eventY + eventHeight - handleSize / 2,
+            handleSize,
+            handleSize,
+          );
+        }
+
+        // Draw event name
+        ctx.fillStyle = isSelected ? "#00ff00" : "#ffcc00";
+        ctx.font = `${Math.max(10, scaledTileSize * 0.4)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(event.name, iconX, eventY - 4);
+      }
     }
   }, [
     currentMap,
@@ -283,6 +347,12 @@ export function EditorCanvas() {
   // Track NPC dragging
   const isDraggingNpcRef = useRef(false);
   const draggingNpcIdRef = useRef<string | null>(null);
+  // Track Event dragging and resizing
+  const isDraggingEventRef = useRef(false);
+  const isResizingEventRef = useRef(false);
+  const draggingEventIdRef = useRef<string | null>(null);
+  const resizeHandleRef = useRef<"se" | "sw" | "ne" | "nw" | null>(null);
+  const eventDragStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Get tile coordinates from mouse event
   const getTileCoords = useCallback(
@@ -378,6 +448,59 @@ export function EditorCanvas() {
     [currentMap, addNPC, selectEntity, findNpcAtPosition],
   );
 
+  // Find Event at tile coordinates
+  const findEventAtPosition = useCallback(
+    (x: number, y: number) => {
+      if (!currentMap) return null;
+      return currentMap.events.find(
+        (event) =>
+          x >= event.position.x &&
+          x < event.position.x + event.width &&
+          y >= event.position.y &&
+          y < event.position.y + event.height,
+      );
+    },
+    [currentMap],
+  );
+
+  // Check if click is on resize handle
+  const isOnResizeHandle = useCallback(
+    (
+      x: number,
+      y: number,
+      event: {
+        position: { x: number; y: number };
+        width: number;
+        height: number;
+      },
+    ) => {
+      const handleX = event.position.x + event.width - 1;
+      const handleY = event.position.y + event.height - 1;
+      return x === handleX && y === handleY;
+    },
+    [],
+  );
+
+  // Place a new Event at coordinates
+  const placeEvent = useCallback(
+    (x: number, y: number) => {
+      if (!currentMap) return;
+
+      const newEvent = {
+        id: crypto.randomUUID(),
+        name: `Event ${currentMap.events.length + 1}`,
+        position: { x, y },
+        width: 1,
+        height: 1,
+        trigger: "action" as EventTrigger,
+      };
+
+      addEvent(currentMap.id, newEvent);
+      selectEntity(newEvent.id, "event");
+    },
+    [currentMap, addEvent, selectEntity],
+  );
+
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getTileCoords(e);
@@ -398,16 +521,67 @@ export function EditorCanvas() {
       return;
     }
 
-    // Select tool: select NPC if clicked on one
+    // Event tool: place or select Event
+    if (activeTool === "event") {
+      const existingEvent = findEventAtPosition(coords.x, coords.y);
+      if (existingEvent) {
+        // Check if clicking on resize handle
+        if (isOnResizeHandle(coords.x, coords.y, existingEvent)) {
+          selectEntity(existingEvent.id, "event");
+          isResizingEventRef.current = true;
+          draggingEventIdRef.current = existingEvent.id;
+          resizeHandleRef.current = "se";
+        } else {
+          // Select existing Event and start dragging
+          selectEntity(existingEvent.id, "event");
+          isDraggingEventRef.current = true;
+          draggingEventIdRef.current = existingEvent.id;
+          eventDragStartRef.current = {
+            x: coords.x - existingEvent.position.x,
+            y: coords.y - existingEvent.position.y,
+          };
+        }
+      } else {
+        // Place new Event
+        placeEvent(coords.x, coords.y);
+      }
+      return;
+    }
+
+    // Select tool: select NPC or Event if clicked on one
     if (activeTool === "select") {
+      // Check for Event first (they can be larger)
+      const existingEvent = findEventAtPosition(coords.x, coords.y);
+      if (existingEvent) {
+        // Check if clicking on resize handle of selected event
+        if (
+          selectedEntityId === existingEvent.id &&
+          isOnResizeHandle(coords.x, coords.y, existingEvent)
+        ) {
+          isResizingEventRef.current = true;
+          draggingEventIdRef.current = existingEvent.id;
+          resizeHandleRef.current = "se";
+        } else {
+          selectEntity(existingEvent.id, "event");
+          isDraggingEventRef.current = true;
+          draggingEventIdRef.current = existingEvent.id;
+          eventDragStartRef.current = {
+            x: coords.x - existingEvent.position.x,
+            y: coords.y - existingEvent.position.y,
+          };
+        }
+        return;
+      }
+
       const existingNpc = findNpcAtPosition(coords.x, coords.y);
       if (existingNpc) {
         selectEntity(existingNpc.id, "npc");
         isDraggingNpcRef.current = true;
         draggingNpcIdRef.current = existingNpc.id;
-      } else {
-        selectEntity(null, null);
+        return;
       }
+
+      selectEntity(null, null);
       return;
     }
 
@@ -437,6 +611,57 @@ export function EditorCanvas() {
       return;
     }
 
+    // Handle Event resizing
+    if (
+      isResizingEventRef.current &&
+      draggingEventIdRef.current &&
+      currentMap
+    ) {
+      const event = currentMap.events.find(
+        (e) => e.id === draggingEventIdRef.current,
+      );
+      if (event) {
+        const newWidth = Math.max(1, coords.x - event.position.x + 1);
+        const newHeight = Math.max(1, coords.y - event.position.y + 1);
+        updateEvent(currentMap.id, draggingEventIdRef.current, {
+          width: newWidth,
+          height: newHeight,
+        });
+      }
+      return;
+    }
+
+    // Handle Event dragging
+    if (
+      isDraggingEventRef.current &&
+      draggingEventIdRef.current &&
+      currentMap
+    ) {
+      const event = currentMap.events.find(
+        (e) => e.id === draggingEventIdRef.current,
+      );
+      if (event && eventDragStartRef.current) {
+        const newX = Math.max(
+          0,
+          Math.min(
+            mapWidth - event.width,
+            coords.x - eventDragStartRef.current.x,
+          ),
+        );
+        const newY = Math.max(
+          0,
+          Math.min(
+            mapHeight - event.height,
+            coords.y - eventDragStartRef.current.y,
+          ),
+        );
+        updateEvent(currentMap.id, draggingEventIdRef.current, {
+          position: { x: newX, y: newY },
+        });
+      }
+      return;
+    }
+
     // Handle tile painting
     if (!isPaintingRef.current) return;
     if (activeTool !== "paint" && activeTool !== "erase") return;
@@ -457,6 +682,11 @@ export function EditorCanvas() {
     lastPaintedTileRef.current = null;
     isDraggingNpcRef.current = false;
     draggingNpcIdRef.current = null;
+    isDraggingEventRef.current = false;
+    isResizingEventRef.current = false;
+    draggingEventIdRef.current = null;
+    resizeHandleRef.current = null;
+    eventDragStartRef.current = null;
   };
 
   // Handle mouse leave
@@ -468,9 +698,14 @@ export function EditorCanvas() {
     lastPaintedTileRef.current = null;
     isDraggingNpcRef.current = false;
     draggingNpcIdRef.current = null;
+    isDraggingEventRef.current = false;
+    isResizingEventRef.current = false;
+    draggingEventIdRef.current = null;
+    resizeHandleRef.current = null;
+    eventDragStartRef.current = null;
   };
 
-  // Handle keyboard for NPC deletion
+  // Handle keyboard for entity deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -483,18 +718,27 @@ export function EditorCanvas() {
         if (npc) {
           deleteNPC(currentMap.id, selectedEntityId);
           selectEntity(null, null);
+          return;
+        }
+
+        // Find if this is an Event
+        const event = currentMap.events.find((e) => e.id === selectedEntityId);
+        if (event) {
+          deleteEvent(currentMap.id, selectedEntityId);
+          selectEntity(null, null);
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedEntityId, currentMap, deleteNPC, selectEntity]);
+  }, [selectedEntityId, currentMap, deleteNPC, deleteEvent, selectEntity]);
 
   // Get cursor style based on active tool
   const getCursorStyle = () => {
     switch (activeTool) {
       case "npc":
+      case "event":
         return "copy";
       case "select":
         return "default";

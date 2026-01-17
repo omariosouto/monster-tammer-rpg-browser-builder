@@ -46,11 +46,15 @@ interface NPCInstance {
   movementSpeed: number; // 1-5
 }
 
+export type EventTrigger = "action" | "touch" | "autorun" | "parallel";
+
 interface MapEvent {
   id: string;
   name: string;
   position: Position;
-  trigger: "action" | "touch" | "autorun" | "parallel";
+  width: number;
+  height: number;
+  trigger: EventTrigger;
 }
 
 interface GameMap {
