@@ -53,7 +53,7 @@ export type ConditionType =
   | "switch"
   | "variable"
   | "hasItem"
-  | "hasPokemon"
+  | "hasMonster"
   | "partySize";
 
 export interface EventCondition {
@@ -66,7 +66,7 @@ export interface EventCondition {
   variableOp?: "==" | "!=" | ">" | "<" | ">=" | "<=";
   variableValue?: number;
   itemId?: string;
-  pokemonId?: string;
+  monsterId?: string;
   partySizeOp?: "==" | "!=" | ">" | "<" | ">=" | "<=";
   partySizeValue?: number;
 }
@@ -79,7 +79,7 @@ export type CommandType =
   | "setVariable"
   | "conditional"
   | "teleport"
-  | "givePokemon";
+  | "giveMonster";
 
 export interface EventCommand {
   id: string;
@@ -99,8 +99,8 @@ export interface EventCommand {
   teleportMapId?: string;
   teleportX?: number;
   teleportY?: number;
-  pokemonId?: string;
-  pokemonLevel?: number;
+  monsterId?: string;
+  monsterLevel?: number;
 }
 
 export interface EventPage {
