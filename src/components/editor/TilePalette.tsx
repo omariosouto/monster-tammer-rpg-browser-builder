@@ -10,6 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useEditorStore } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
 
@@ -120,37 +126,87 @@ export function TilePalette() {
       {/* Tile Grid */}
       <ScrollArea className="flex-1">
         <div className="p-2">
-          <div className="grid grid-cols-8 gap-0.5 bg-muted/50 p-1 rounded">
-            {TILE_INDICES.map((tileIndex) => (
-              <button
-                key={tileIndex}
-                type="button"
-                className={`w-6 h-6 border transition-colors ${
-                  selectedTiles.includes(tileIndex + 1)
-                    ? "border-primary ring-2 ring-primary"
-                    : "border-transparent hover:border-muted-foreground/30"
-                }`}
-                style={{
-                  backgroundImage: `url(${tilesetImageUrl})`,
-                  backgroundPosition: getTileBackgroundPosition(tileIndex),
-                  backgroundSize: `${TILESET_COLUMNS * TILE_SIZE}px ${TILESET_ROWS * TILE_SIZE}px`,
-                  imageRendering: "pixelated",
-                }}
-                onClick={() => handleTileClick(tileIndex)}
-                title={`Tile ${tileIndex + 1}`}
-              />
-            ))}
-          </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="grid grid-cols-8 gap-0.5 bg-muted/50 p-1 rounded">
+              {TILE_INDICES.map((tileIndex) => (
+                <Tooltip key={tileIndex}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={`w-6 h-6 border transition-colors ${
+                        selectedTiles.includes(tileIndex + 1)
+                          ? "border-primary ring-2 ring-primary"
+                          : "border-transparent hover:border-muted-foreground/30"
+                      }`}
+                      style={{
+                        backgroundImage: `url(${tilesetImageUrl})`,
+                        backgroundPosition:
+                          getTileBackgroundPosition(tileIndex),
+                        backgroundSize: `${TILESET_COLUMNS * TILE_SIZE}px ${TILESET_ROWS * TILE_SIZE}px`,
+                        imageRendering: "pixelated",
+                      }}
+                      onClick={() => handleTileClick(tileIndex)}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="flex items-center gap-2"
+                  >
+                    <div
+                      className="w-8 h-8 border border-border rounded"
+                      style={{
+                        backgroundImage: `url(${tilesetImageUrl})`,
+                        backgroundPosition:
+                          getTileBackgroundPosition(tileIndex),
+                        backgroundSize: `${TILESET_COLUMNS * TILE_SIZE}px ${TILESET_ROWS * TILE_SIZE}px`,
+                        imageRendering: "pixelated",
+                        transform: "scale(2)",
+                        transformOrigin: "center",
+                      }}
+                    />
+                    <span className="ml-2">Tile {tileIndex + 1}</span>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
         </div>
       </ScrollArea>
 
-      {/* Selected Tile Info */}
-      <div className="h-10 border-t flex items-center px-3">
-        <span className="text-xs text-muted-foreground">
-          {selectedTiles.length > 0
-            ? `Selected: Tile ${selectedTiles.join(", ")}`
-            : "Click a tile to select"}
-        </span>
+      {/* Selected Tile Preview */}
+      <div className="border-t p-3">
+        {selectedTiles.length > 0 ? (
+          <div className="flex items-center gap-3">
+            {/* Large tile preview */}
+            <div
+              className="w-12 h-12 border border-border rounded shadow-sm flex-shrink-0"
+              style={{
+                backgroundImage: `url(${tilesetImageUrl})`,
+                backgroundPosition: getTileBackgroundPosition(
+                  selectedTiles[0] - 1,
+                ),
+                backgroundSize: `${TILESET_COLUMNS * TILE_SIZE}px ${TILESET_ROWS * TILE_SIZE}px`,
+                imageRendering: "pixelated",
+                backgroundRepeat: "no-repeat",
+                transform: "scale(3)",
+                transformOrigin: "top left",
+              }}
+            />
+            <div className="flex flex-col ml-6">
+              <span className="text-sm font-medium">
+                Tile {selectedTiles[0]}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Row {Math.floor((selectedTiles[0] - 1) / TILESET_COLUMNS) + 1},
+                Col {((selectedTiles[0] - 1) % TILESET_COLUMNS) + 1}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            Click a tile to select
+          </span>
+        )}
       </div>
     </aside>
   );

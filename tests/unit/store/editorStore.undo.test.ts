@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useEditorStore, type HistoryEntry } from "@/store/editorStore";
+import { type HistoryEntry, useEditorStore } from "@/store/editorStore";
 
 describe("editorStore undo/redo", () => {
   beforeEach(() => {
