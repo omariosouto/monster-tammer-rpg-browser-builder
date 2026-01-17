@@ -4,12 +4,17 @@ import { useProjectStore } from "@/store/projectStore";
 
 const TILE_SIZE = 16;
 const TILESET_COLUMNS = 8;
+const NPC_SPRITE_WIDTH = 16;
+const NPC_SPRITE_HEIGHT = 24;
 
 export function EditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
     null,
+  );
+  const [npcSprites, setNpcSprites] = useState<Map<string, HTMLImageElement>>(
+    new Map(),
   );
 
   const {
@@ -18,9 +23,12 @@ export function EditorCanvas() {
     activeLayerId,
     activeTool,
     selectedTiles,
+    selectedEntityId,
+    selectEntity,
     pushHistory,
   } = useEditorStore();
-  const { project, setTile, getTileAt } = useProjectStore();
+  const { project, setTile, getTileAt, addNPC, updateNPC, deleteNPC } =
+    useProjectStore();
 
   // Get the current tileset
   const currentTileset = project?.tilesets[0];
@@ -35,6 +43,37 @@ export function EditorCanvas() {
     };
     img.src = tilesetImageUrl;
   }, [tilesetImageUrl]);
+
+  // Load NPC sprites
+  useEffect(() => {
+    const spriteUrls = [
+      { id: "npc-1", url: "/assets/sprites/npcs/npc-1.png" },
+      { id: "npc-2", url: "/assets/sprites/npcs/npc-2.png" },
+      { id: "npc-3", url: "/assets/sprites/npcs/npc-3.png" },
+      { id: "player", url: "/assets/sprites/characters/player.png" },
+    ];
+
+    const loadedSprites = new Map<string, HTMLImageElement>();
+    let loadedCount = 0;
+
+    for (const { id, url } of spriteUrls) {
+      const img = new Image();
+      img.onload = () => {
+        loadedSprites.set(id, img);
+        loadedCount++;
+        if (loadedCount === spriteUrls.length) {
+          setNpcSprites(new Map(loadedSprites));
+        }
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === spriteUrls.length) {
+          setNpcSprites(new Map(loadedSprites));
+        }
+      };
+      img.src = url;
+    }
+  }, []);
 
   const currentMap = project?.maps[0];
   const mapWidth = currentMap?.width ?? 20;
@@ -129,6 +168,96 @@ export function EditorCanvas() {
         ctx.stroke();
       }
     }
+
+    // Draw NPCs
+    if (currentMap) {
+      for (const npc of currentMap.npcs) {
+        const spriteId = npc.spritesheet || "npc-1";
+        const sprite = npcSprites.get(spriteId);
+
+        const npcX = npc.position.x * scaledTileSize;
+        // Offset Y so NPC stands on the tile (sprite is taller than tile)
+        const npcY =
+          npc.position.y * scaledTileSize -
+          (NPC_SPRITE_HEIGHT - TILE_SIZE) * zoom;
+
+        if (sprite) {
+          // Get direction frame (row 0=down, 1=left, 2=right, 3=up)
+          const directionRow =
+            npc.direction === "down"
+              ? 0
+              : npc.direction === "left"
+                ? 1
+                : npc.direction === "right"
+                  ? 2
+                  : 3;
+
+          ctx.drawImage(
+            sprite,
+            0, // First frame
+            directionRow * NPC_SPRITE_HEIGHT,
+            NPC_SPRITE_WIDTH,
+            NPC_SPRITE_HEIGHT,
+            npcX,
+            npcY,
+            NPC_SPRITE_WIDTH * zoom,
+            NPC_SPRITE_HEIGHT * zoom,
+          );
+        } else {
+          // Fallback: draw a colored rectangle
+          ctx.fillStyle = "#ff6b6b";
+          ctx.fillRect(npcX, npcY, scaledTileSize, NPC_SPRITE_HEIGHT * zoom);
+        }
+
+        // Draw selection indicator
+        if (selectedEntityId === npc.id) {
+          ctx.strokeStyle = "#00ff00";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(
+            npcX - 2,
+            npcY - 2,
+            NPC_SPRITE_WIDTH * zoom + 4,
+            NPC_SPRITE_HEIGHT * zoom + 4,
+          );
+        }
+
+        // Draw direction indicator (small arrow)
+        ctx.fillStyle = "#ffffff";
+        const arrowSize = 4 * zoom;
+        const centerX = npcX + (NPC_SPRITE_WIDTH * zoom) / 2;
+        const bottomY = npc.position.y * scaledTileSize + scaledTileSize;
+
+        ctx.beginPath();
+        if (npc.direction === "down") {
+          ctx.moveTo(centerX, bottomY + arrowSize);
+          ctx.lineTo(centerX - arrowSize, bottomY);
+          ctx.lineTo(centerX + arrowSize, bottomY);
+        } else if (npc.direction === "up") {
+          ctx.moveTo(centerX, npcY - arrowSize);
+          ctx.lineTo(centerX - arrowSize, npcY);
+          ctx.lineTo(centerX + arrowSize, npcY);
+        } else if (npc.direction === "left") {
+          ctx.moveTo(npcX - arrowSize, npcY + (NPC_SPRITE_HEIGHT * zoom) / 2);
+          ctx.lineTo(npcX, npcY + (NPC_SPRITE_HEIGHT * zoom) / 2 - arrowSize);
+          ctx.lineTo(npcX, npcY + (NPC_SPRITE_HEIGHT * zoom) / 2 + arrowSize);
+        } else {
+          ctx.moveTo(
+            npcX + NPC_SPRITE_WIDTH * zoom + arrowSize,
+            npcY + (NPC_SPRITE_HEIGHT * zoom) / 2,
+          );
+          ctx.lineTo(
+            npcX + NPC_SPRITE_WIDTH * zoom,
+            npcY + (NPC_SPRITE_HEIGHT * zoom) / 2 - arrowSize,
+          );
+          ctx.lineTo(
+            npcX + NPC_SPRITE_WIDTH * zoom,
+            npcY + (NPC_SPRITE_HEIGHT * zoom) / 2 + arrowSize,
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
   }, [
     currentMap,
     canvasWidth,
@@ -139,6 +268,9 @@ export function EditorCanvas() {
     gridVisible,
     tilesetImage,
     getTileSourceCoords,
+    npcSprites,
+    selectedEntityId,
+    zoom,
   ]);
 
   // Track if mouse is being dragged for continuous painting
@@ -148,6 +280,9 @@ export function EditorCanvas() {
   const strokeChangesRef = useRef<
     Array<{ x: number; y: number; oldTileId: number; newTileId: number }>
   >([]);
+  // Track NPC dragging
+  const isDraggingNpcRef = useRef(false);
+  const draggingNpcIdRef = useRef<string | null>(null);
 
   // Get tile coordinates from mouse event
   const getTileCoords = useCallback(
@@ -208,28 +343,102 @@ export function EditorCanvas() {
     strokeChangesRef.current = [];
   }, [currentMap, activeLayerId, pushHistory]);
 
-  // Handle mouse down - start painting
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (activeTool !== "paint" && activeTool !== "erase") return;
+  // Find NPC at tile coordinates
+  const findNpcAtPosition = useCallback(
+    (x: number, y: number) => {
+      if (!currentMap) return null;
+      return currentMap.npcs.find(
+        (npc) => npc.position.x === x && npc.position.y === y,
+      );
+    },
+    [currentMap],
+  );
 
+  // Place a new NPC at coordinates
+  const placeNpc = useCallback(
+    (x: number, y: number) => {
+      if (!currentMap) return;
+
+      // Don't place if there's already an NPC here
+      if (findNpcAtPosition(x, y)) return;
+
+      const newNpc = {
+        id: crypto.randomUUID(),
+        name: `NPC ${currentMap.npcs.length + 1}`,
+        position: { x, y },
+        spritesheet: "npc-1",
+        direction: "down" as const,
+      };
+
+      addNPC(currentMap.id, newNpc);
+      selectEntity(newNpc.id, "npc");
+    },
+    [currentMap, addNPC, selectEntity, findNpcAtPosition],
+  );
+
+  // Handle mouse down
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getTileCoords(e);
     if (!coords) return;
 
-    isPaintingRef.current = true;
-    lastPaintedTileRef.current = coords;
-    strokeChangesRef.current = []; // Reset stroke changes
-    paintAtCoords(coords.x, coords.y);
+    // NPC tool: place or select NPC
+    if (activeTool === "npc") {
+      const existingNpc = findNpcAtPosition(coords.x, coords.y);
+      if (existingNpc) {
+        // Select existing NPC and start dragging
+        selectEntity(existingNpc.id, "npc");
+        isDraggingNpcRef.current = true;
+        draggingNpcIdRef.current = existingNpc.id;
+      } else {
+        // Place new NPC
+        placeNpc(coords.x, coords.y);
+      }
+      return;
+    }
+
+    // Select tool: select NPC if clicked on one
+    if (activeTool === "select") {
+      const existingNpc = findNpcAtPosition(coords.x, coords.y);
+      if (existingNpc) {
+        selectEntity(existingNpc.id, "npc");
+        isDraggingNpcRef.current = true;
+        draggingNpcIdRef.current = existingNpc.id;
+      } else {
+        selectEntity(null, null);
+      }
+      return;
+    }
+
+    // Paint/erase tools
+    if (activeTool === "paint" || activeTool === "erase") {
+      isPaintingRef.current = true;
+      lastPaintedTileRef.current = coords;
+      strokeChangesRef.current = [];
+      paintAtCoords(coords.x, coords.y);
+    }
   };
 
-  // Handle mouse move - continue painting while dragging
+  // Handle mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getTileCoords(e);
+    if (!coords) return;
+
+    // Handle NPC dragging
+    if (isDraggingNpcRef.current && draggingNpcIdRef.current && currentMap) {
+      // Don't move if there's already an NPC at the target position
+      const existingNpc = findNpcAtPosition(coords.x, coords.y);
+      if (!existingNpc || existingNpc.id === draggingNpcIdRef.current) {
+        updateNPC(currentMap.id, draggingNpcIdRef.current, {
+          position: { x: coords.x, y: coords.y },
+        });
+      }
+      return;
+    }
+
+    // Handle tile painting
     if (!isPaintingRef.current) return;
     if (activeTool !== "paint" && activeTool !== "erase") return;
 
-    const coords = getTileCoords(e);
-    if (!coords) return;
-
-    // Only paint if we moved to a different tile
     const last = lastPaintedTileRef.current;
     if (last && last.x === coords.x && last.y === coords.y) return;
 
@@ -237,22 +446,62 @@ export function EditorCanvas() {
     paintAtCoords(coords.x, coords.y);
   };
 
-  // Handle mouse up - stop painting and commit to history
+  // Handle mouse up
   const handleMouseUp = () => {
     if (isPaintingRef.current) {
       commitStroke();
     }
     isPaintingRef.current = false;
     lastPaintedTileRef.current = null;
+    isDraggingNpcRef.current = false;
+    draggingNpcIdRef.current = null;
   };
 
-  // Handle mouse leave - stop painting and commit to history
+  // Handle mouse leave
   const handleMouseLeave = () => {
     if (isPaintingRef.current) {
       commitStroke();
     }
     isPaintingRef.current = false;
     lastPaintedTileRef.current = null;
+    isDraggingNpcRef.current = false;
+    draggingNpcIdRef.current = null;
+  };
+
+  // Handle keyboard for NPC deletion
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedEntityId &&
+        currentMap
+      ) {
+        // Find if this is an NPC
+        const npc = currentMap.npcs.find((n) => n.id === selectedEntityId);
+        if (npc) {
+          deleteNPC(currentMap.id, selectedEntityId);
+          selectEntity(null, null);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEntityId, currentMap, deleteNPC, selectEntity]);
+
+  // Get cursor style based on active tool
+  const getCursorStyle = () => {
+    switch (activeTool) {
+      case "npc":
+        return "copy";
+      case "select":
+        return "default";
+      case "paint":
+      case "erase":
+        return "crosshair";
+      default:
+        return "crosshair";
+    }
   };
 
   return (
@@ -264,13 +513,14 @@ export function EditorCanvas() {
         ref={canvasRef}
         width={canvasWidth}
         height={canvasHeight}
-        className="border border-border shadow-lg cursor-crosshair"
+        className="border border-border shadow-lg"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         style={{
           imageRendering: "pixelated",
+          cursor: getCursorStyle(),
         }}
       />
     </div>
