@@ -1,6 +1,15 @@
 import "@testing-library/dom";
+import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+
+// Mock ResizeObserver for components that use it
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
 // Cleanup after each test
 afterEach(() => {

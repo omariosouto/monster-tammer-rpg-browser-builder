@@ -33,12 +33,17 @@ interface Layer {
   data: number[];
 }
 
+export type NPCBehavior = "stationary" | "random" | "patrol";
+export type NPCDirection = "up" | "down" | "left" | "right";
+
 interface NPCInstance {
   id: string;
   name: string;
   position: Position;
   spritesheet: string;
-  direction: "up" | "down" | "left" | "right";
+  direction: NPCDirection;
+  behavior: NPCBehavior;
+  movementSpeed: number; // 1-5
 }
 
 interface MapEvent {
