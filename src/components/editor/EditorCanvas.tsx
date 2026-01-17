@@ -444,8 +444,15 @@ export function EditorCanvas() {
 
       addNPC(currentMap.id, newNpc);
       selectEntity(newNpc.id, "npc");
+
+      // Push history entry for undo
+      pushHistory({
+        type: "npc_add",
+        mapId: currentMap.id,
+        npcData: newNpc,
+      });
     },
-    [currentMap, addNPC, selectEntity, findNpcAtPosition],
+    [currentMap, addNPC, selectEntity, findNpcAtPosition, pushHistory],
   );
 
   // Find Event at tile coordinates
@@ -463,7 +470,7 @@ export function EditorCanvas() {
     [currentMap],
   );
 
-  // Check if click is on resize handle
+  // Check if click is on resize handle (only for events larger than 1x1)
   const isOnResizeHandle = useCallback(
     (
       x: number,
@@ -474,6 +481,8 @@ export function EditorCanvas() {
         height: number;
       },
     ) => {
+      // Only show resize handle for events larger than 1x1
+      if (event.width <= 1 && event.height <= 1) return false;
       const handleX = event.position.x + event.width - 1;
       const handleY = event.position.y + event.height - 1;
       return x === handleX && y === handleY;
@@ -497,8 +506,15 @@ export function EditorCanvas() {
 
       addEvent(currentMap.id, newEvent);
       selectEntity(newEvent.id, "event");
+
+      // Push history entry for undo
+      pushHistory({
+        type: "event_add",
+        mapId: currentMap.id,
+        eventData: newEvent,
+      });
     },
-    [currentMap, addEvent, selectEntity],
+    [currentMap, addEvent, selectEntity, pushHistory],
   );
 
   // Handle mouse down
@@ -716,14 +732,28 @@ export function EditorCanvas() {
         // Find if this is an NPC
         const npc = currentMap.npcs.find((n) => n.id === selectedEntityId);
         if (npc) {
+          // Push history entry before deleting
+          pushHistory({
+            type: "npc_delete",
+            mapId: currentMap.id,
+            npcData: { ...npc },
+          });
           deleteNPC(currentMap.id, selectedEntityId);
           selectEntity(null, null);
           return;
         }
 
         // Find if this is an Event
-        const event = currentMap.events.find((e) => e.id === selectedEntityId);
+        const event = currentMap.events.find(
+          (ev) => ev.id === selectedEntityId,
+        );
         if (event) {
+          // Push history entry before deleting
+          pushHistory({
+            type: "event_delete",
+            mapId: currentMap.id,
+            eventData: { ...event },
+          });
           deleteEvent(currentMap.id, selectedEntityId);
           selectEntity(null, null);
         }
@@ -732,7 +762,14 @@ export function EditorCanvas() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedEntityId, currentMap, deleteNPC, deleteEvent, selectEntity]);
+  }, [
+    selectedEntityId,
+    currentMap,
+    deleteNPC,
+    deleteEvent,
+    selectEntity,
+    pushHistory,
+  ]);
 
   // Get cursor style based on active tool
   const getCursorStyle = () => {
