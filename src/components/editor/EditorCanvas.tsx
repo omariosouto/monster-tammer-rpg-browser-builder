@@ -770,6 +770,15 @@ export function EditorCanvas() {
   // Handle keyboard for entity deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't delete entities when typing in input fields
+      const activeElement = document.activeElement;
+      const isTyping =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement?.getAttribute("contenteditable") === "true";
+
+      if (isTyping) return;
+
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedEntityId &&
