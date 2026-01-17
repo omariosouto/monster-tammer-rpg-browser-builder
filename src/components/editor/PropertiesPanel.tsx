@@ -127,7 +127,7 @@ export function PropertiesPanel() {
   );
 
   return (
-    <aside className="w-64 border-l bg-background flex flex-col">
+    <aside className="w-64 border-l bg-background flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="h-10 flex items-center justify-between px-3 border-b">
         <span className="text-sm font-medium">Properties</span>
@@ -141,7 +141,7 @@ export function PropertiesPanel() {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-auto">
         <div className="p-3 space-y-4">
           {/* Map Properties */}
           <section>
