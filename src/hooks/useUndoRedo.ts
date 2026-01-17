@@ -6,9 +6,18 @@ import { useProjectStore } from "@/store/projectStore";
  * Hook that handles undo/redo operations and keyboard shortcuts
  */
 export function useUndoRedo() {
-  const { undo, redo, canUndo, canRedo } = useEditorStore();
-  const { setTiles, addLayer, deleteLayer, updateLayer, getMap } =
-    useProjectStore();
+  const { undo, redo, canUndo, canRedo, selectEntity } = useEditorStore();
+  const {
+    setTiles,
+    addLayer,
+    deleteLayer,
+    updateLayer,
+    getMap,
+    addNPC,
+    deleteNPC,
+    addEvent,
+    deleteEvent,
+  } = useProjectStore();
 
   // Apply the inverse of a history entry (for undo)
   const applyUndo = useCallback(
@@ -40,9 +49,41 @@ export function useUndoRedo() {
           updateLayer(entry.mapId, entry.layerId, entry.oldData);
           break;
         }
+        case "npc_add": {
+          // Remove the NPC that was added
+          deleteNPC(entry.mapId, entry.npcData.id);
+          selectEntity(null, null);
+          break;
+        }
+        case "npc_delete": {
+          // Re-add the NPC that was deleted
+          addNPC(entry.mapId, entry.npcData);
+          break;
+        }
+        case "event_add": {
+          // Remove the Event that was added
+          deleteEvent(entry.mapId, entry.eventData.id);
+          selectEntity(null, null);
+          break;
+        }
+        case "event_delete": {
+          // Re-add the Event that was deleted
+          addEvent(entry.mapId, entry.eventData);
+          break;
+        }
       }
     },
-    [setTiles, deleteLayer, addLayer, updateLayer],
+    [
+      setTiles,
+      deleteLayer,
+      addLayer,
+      updateLayer,
+      deleteNPC,
+      addNPC,
+      deleteEvent,
+      addEvent,
+      selectEntity,
+    ],
   );
 
   // Apply a history entry (for redo)
@@ -85,9 +126,42 @@ export function useUndoRedo() {
           updateLayer(entry.mapId, entry.layerId, entry.newData);
           break;
         }
+        case "npc_add": {
+          // Re-add the NPC
+          addNPC(entry.mapId, entry.npcData);
+          break;
+        }
+        case "npc_delete": {
+          // Delete the NPC again
+          deleteNPC(entry.mapId, entry.npcData.id);
+          selectEntity(null, null);
+          break;
+        }
+        case "event_add": {
+          // Re-add the Event
+          addEvent(entry.mapId, entry.eventData);
+          break;
+        }
+        case "event_delete": {
+          // Delete the Event again
+          deleteEvent(entry.mapId, entry.eventData.id);
+          selectEntity(null, null);
+          break;
+        }
       }
     },
-    [setTiles, addLayer, deleteLayer, updateLayer, getMap],
+    [
+      setTiles,
+      addLayer,
+      deleteLayer,
+      updateLayer,
+      getMap,
+      addNPC,
+      deleteNPC,
+      addEvent,
+      deleteEvent,
+      selectEntity,
+    ],
   );
 
   // Handle undo action

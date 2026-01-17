@@ -12,6 +12,7 @@ import {
   Square,
   Undo2,
   User,
+  Zap,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -44,7 +45,10 @@ const tileTools: { id: EditorTool; icon: React.ReactNode; label: string }[] = [
 ];
 
 const entityTools: { id: EditorTool; icon: React.ReactNode; label: string }[] =
-  [{ id: "npc", icon: <User className="h-4 w-4" />, label: "Place NPC" }];
+  [
+    { id: "npc", icon: <User className="h-4 w-4" />, label: "Place NPC" },
+    { id: "event", icon: <Zap className="h-4 w-4" />, label: "Place Event" },
+  ];
 
 type AppMode = "home" | "editor" | "play";
 const modeParser = parseAsStringEnum<AppMode>(["home", "editor", "play"]);

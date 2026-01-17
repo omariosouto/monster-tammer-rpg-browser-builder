@@ -61,11 +61,69 @@ type LayerUpdateEntry = {
   }>;
 };
 
+type NPCAddEntry = {
+  type: "npc_add";
+  mapId: string;
+  npcData: {
+    id: string;
+    name: string;
+    position: { x: number; y: number };
+    spritesheet: string;
+    direction: "up" | "down" | "left" | "right";
+    behavior: "stationary" | "random" | "patrol";
+    movementSpeed: number;
+  };
+};
+
+type NPCDeleteEntry = {
+  type: "npc_delete";
+  mapId: string;
+  npcData: {
+    id: string;
+    name: string;
+    position: { x: number; y: number };
+    spritesheet: string;
+    direction: "up" | "down" | "left" | "right";
+    behavior: "stationary" | "random" | "patrol";
+    movementSpeed: number;
+  };
+};
+
+type EventAddEntry = {
+  type: "event_add";
+  mapId: string;
+  eventData: {
+    id: string;
+    name: string;
+    position: { x: number; y: number };
+    width: number;
+    height: number;
+    trigger: "action" | "touch" | "autorun" | "parallel";
+  };
+};
+
+type EventDeleteEntry = {
+  type: "event_delete";
+  mapId: string;
+  eventData: {
+    id: string;
+    name: string;
+    position: { x: number; y: number };
+    width: number;
+    height: number;
+    trigger: "action" | "touch" | "autorun" | "parallel";
+  };
+};
+
 export type HistoryEntry =
   | TileChangeEntry
   | LayerAddEntry
   | LayerDeleteEntry
-  | LayerUpdateEntry;
+  | LayerUpdateEntry
+  | NPCAddEntry
+  | NPCDeleteEntry
+  | EventAddEntry
+  | EventDeleteEntry;
 
 interface EditorState {
   // Current project/map

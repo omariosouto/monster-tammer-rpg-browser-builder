@@ -9,13 +9,8 @@ import { useProjectStore } from "@/store/projectStore";
 
 export function EditorPage() {
   const { project, createProject } = useProjectStore();
-  const {
-    activeLayerId,
-    setActiveLayerId,
-    setActiveTool,
-    selectTiles,
-    activeTool,
-  } = useEditorStore();
+  const { activeLayerId, setActiveLayerId, setActiveTool, selectTiles } =
+    useEditorStore();
 
   // Create a default project if none exists
   useEffect(() => {
@@ -36,13 +31,11 @@ export function EditorPage() {
     }
   }, [project, activeLayerId, setActiveLayerId]);
 
-  // Set paint tool and first tile on mount for better UX
+  // Set paint tool and first tile on initial mount for better UX
   useEffect(() => {
-    if (activeTool === "select") {
-      setActiveTool("paint");
-      selectTiles([1]); // Select first tile by default
-    }
-  }, [activeTool, setActiveTool, selectTiles]);
+    setActiveTool("paint");
+    selectTiles([1]); // Select first tile by default
+  }, [setActiveTool, selectTiles]); // Zustand actions are stable, so this runs once
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
       {/* Top Toolbar */}
