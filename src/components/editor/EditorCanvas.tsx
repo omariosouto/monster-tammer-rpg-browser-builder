@@ -353,6 +353,8 @@ export function EditorCanvas() {
   const draggingEventIdRef = useRef<string | null>(null);
   const resizeHandleRef = useRef<"se" | "sw" | "ne" | "nw" | null>(null);
   const eventDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Track origin position for click-drag event creation
+  const eventCreationOriginRef = useRef<{ x: number; y: number } | null>(null);
 
   // Get tile coordinates from mouse event
   const getTileCoords = useCallback(
@@ -511,10 +513,10 @@ export function EditorCanvas() {
     [currentMap],
   );
 
-  // Place a new Event at coordinates
+  // Place a new Event at coordinates - returns the new event ID for immediate resizing
   const placeEvent = useCallback(
-    (x: number, y: number) => {
-      if (!currentMap) return;
+    (x: number, y: number): string | null => {
+      if (!currentMap) return null;
 
       const newEvent = {
         id: crypto.randomUUID(),
@@ -534,6 +536,8 @@ export function EditorCanvas() {
         mapId: currentMap.id,
         eventData: newEvent,
       });
+
+      return newEvent.id;
     },
     [currentMap, addEvent, selectEntity, pushHistory],
   );
@@ -569,6 +573,7 @@ export function EditorCanvas() {
           isResizingEventRef.current = true;
           draggingEventIdRef.current = existingEvent.id;
           resizeHandleRef.current = "se";
+          eventCreationOriginRef.current = null;
         } else {
           // Select existing Event and start dragging
           selectEntity(existingEvent.id, "event");
@@ -580,8 +585,14 @@ export function EditorCanvas() {
           };
         }
       } else {
-        // Place new Event
-        placeEvent(coords.x, coords.y);
+        // Place new Event and immediately enter resize mode for click-drag creation
+        const newEventId = placeEvent(coords.x, coords.y);
+        if (newEventId) {
+          isResizingEventRef.current = true;
+          draggingEventIdRef.current = newEventId;
+          resizeHandleRef.current = "se";
+          eventCreationOriginRef.current = { x: coords.x, y: coords.y };
+        }
       }
       return;
     }
@@ -659,8 +670,11 @@ export function EditorCanvas() {
         (e) => e.id === draggingEventIdRef.current,
       );
       if (event) {
-        const newWidth = Math.max(1, coords.x - event.position.x + 1);
-        const newHeight = Math.max(1, coords.y - event.position.y + 1);
+        // Use origin for click-drag creation, or event position for regular resize
+        const originX = eventCreationOriginRef.current?.x ?? event.position.x;
+        const originY = eventCreationOriginRef.current?.y ?? event.position.y;
+        const newWidth = Math.max(1, coords.x - originX + 1);
+        const newHeight = Math.max(1, coords.y - originY + 1);
         updateEvent(currentMap.id, draggingEventIdRef.current, {
           width: newWidth,
           height: newHeight,
@@ -725,6 +739,7 @@ export function EditorCanvas() {
     draggingEventIdRef.current = null;
     resizeHandleRef.current = null;
     eventDragStartRef.current = null;
+    eventCreationOriginRef.current = null;
   };
 
   // Handle mouse leave
@@ -741,6 +756,7 @@ export function EditorCanvas() {
     draggingEventIdRef.current = null;
     resizeHandleRef.current = null;
     eventDragStartRef.current = null;
+    eventCreationOriginRef.current = null;
   };
 
   // Handle keyboard for entity deletion
