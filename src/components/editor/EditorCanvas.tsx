@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useEditorStore } from "@/store/editorStore";
+import { type HistoryEntry, useEditorStore } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
 
 const TILE_SIZE = 16;
@@ -12,9 +12,15 @@ export function EditorCanvas() {
     null,
   );
 
-  const { zoom, gridVisible, activeLayerId, activeTool, selectedTiles } =
-    useEditorStore();
-  const { project, setTile } = useProjectStore();
+  const {
+    zoom,
+    gridVisible,
+    activeLayerId,
+    activeTool,
+    selectedTiles,
+    pushHistory,
+  } = useEditorStore();
+  const { project, setTile, getTileAt } = useProjectStore();
 
   // Get the current tileset
   const currentTileset = project?.tilesets[0];
@@ -138,6 +144,10 @@ export function EditorCanvas() {
   // Track if mouse is being dragged for continuous painting
   const isPaintingRef = useRef(false);
   const lastPaintedTileRef = useRef<{ x: number; y: number } | null>(null);
+  // Track tile changes during a paint stroke for undo/redo
+  const strokeChangesRef = useRef<
+    Array<{ x: number; y: number; oldTileId: number; newTileId: number }>
+  >([]);
 
   // Get tile coordinates from mouse event
   const getTileCoords = useCallback(
@@ -155,19 +165,48 @@ export function EditorCanvas() {
     [scaledTileSize, mapWidth, mapHeight],
   );
 
-  // Paint or erase at the given coordinates
+  // Paint or erase at the given coordinates and track the change
   const paintAtCoords = useCallback(
     (x: number, y: number) => {
       if (!currentMap || !activeLayerId) return;
 
-      if (activeTool === "paint" && selectedTiles.length > 0) {
-        setTile(currentMap.id, activeLayerId, x, y, selectedTiles[0]);
-      } else if (activeTool === "erase") {
-        setTile(currentMap.id, activeLayerId, x, y, 0);
-      }
+      const newTileId =
+        activeTool === "paint" && selectedTiles.length > 0
+          ? selectedTiles[0]
+          : activeTool === "erase"
+            ? 0
+            : null;
+
+      if (newTileId === null) return;
+
+      // Get the old tile value before changing
+      const oldTileId = getTileAt(currentMap.id, activeLayerId, x, y);
+
+      // Don't record if tile is already the same
+      if (oldTileId === newTileId) return;
+
+      // Record the change for undo
+      strokeChangesRef.current.push({ x, y, oldTileId, newTileId });
+
+      // Apply the change
+      setTile(currentMap.id, activeLayerId, x, y, newTileId);
     },
-    [currentMap, activeLayerId, activeTool, selectedTiles, setTile],
+    [currentMap, activeLayerId, activeTool, selectedTiles, setTile, getTileAt],
   );
+
+  // Commit stroke changes to history
+  const commitStroke = useCallback(() => {
+    if (strokeChangesRef.current.length > 0 && currentMap && activeLayerId) {
+      const historyEntry: HistoryEntry = {
+        type: "tile",
+        mapId: currentMap.id,
+        layerId: activeLayerId,
+        changes: [...strokeChangesRef.current],
+      };
+      pushHistory(historyEntry);
+    }
+    strokeChangesRef.current = [];
+  }, [currentMap, activeLayerId, pushHistory]);
 
   // Handle mouse down - start painting
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -178,6 +217,7 @@ export function EditorCanvas() {
 
     isPaintingRef.current = true;
     lastPaintedTileRef.current = coords;
+    strokeChangesRef.current = []; // Reset stroke changes
     paintAtCoords(coords.x, coords.y);
   };
 
@@ -197,14 +237,20 @@ export function EditorCanvas() {
     paintAtCoords(coords.x, coords.y);
   };
 
-  // Handle mouse up - stop painting
+  // Handle mouse up - stop painting and commit to history
   const handleMouseUp = () => {
+    if (isPaintingRef.current) {
+      commitStroke();
+    }
     isPaintingRef.current = false;
     lastPaintedTileRef.current = null;
   };
 
-  // Handle mouse leave - stop painting when cursor leaves canvas
+  // Handle mouse leave - stop painting and commit to history
   const handleMouseLeave = () => {
+    if (isPaintingRef.current) {
+      commitStroke();
+    }
     isPaintingRef.current = false;
     lastPaintedTileRef.current = null;
   };
