@@ -12,12 +12,60 @@ export type EditorTool =
 
 export type Direction = "up" | "down" | "left" | "right";
 
-interface HistoryEntry {
-  type: "tile" | "npc" | "event" | "layer";
+// History entry types for undo/redo
+type TileChangeEntry = {
+  type: "tile";
   mapId: string;
-  data: unknown;
-  timestamp: number;
-}
+  layerId: string;
+  changes: Array<{
+    x: number;
+    y: number;
+    oldTileId: number;
+    newTileId: number;
+  }>;
+};
+
+type LayerAddEntry = {
+  type: "layer_add";
+  mapId: string;
+  layerId: string;
+};
+
+type LayerDeleteEntry = {
+  type: "layer_delete";
+  mapId: string;
+  layerData: {
+    id: string;
+    name: string;
+    type: "ground" | "object" | "overlay" | "collision";
+    visible: boolean;
+    opacity: number;
+    data: number[];
+  };
+  index: number;
+};
+
+type LayerUpdateEntry = {
+  type: "layer_update";
+  mapId: string;
+  layerId: string;
+  oldData: Partial<{
+    name: string;
+    visible: boolean;
+    opacity: number;
+  }>;
+  newData: Partial<{
+    name: string;
+    visible: boolean;
+    opacity: number;
+  }>;
+};
+
+export type HistoryEntry =
+  | TileChangeEntry
+  | LayerAddEntry
+  | LayerDeleteEntry
+  | LayerUpdateEntry;
 
 interface EditorState {
   // Current project/map
@@ -54,9 +102,11 @@ interface EditorState {
   setZoom: (zoom: number) => void;
   toggleGrid: () => void;
   toggleCollisionLayer: () => void;
-  pushHistory: (entry: Omit<HistoryEntry, "timestamp">) => void;
-  undo: () => void;
-  redo: () => void;
+  pushHistory: (entry: HistoryEntry) => void;
+  undo: () => HistoryEntry | null;
+  redo: () => HistoryEntry | null;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
   resetEditor: () => void;
 }
 
@@ -103,8 +153,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   pushHistory: (entry) => {
     const { history, historyIndex } = get();
+    // Remove any entries after current index (discard redo stack)
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({ ...entry, timestamp: Date.now() });
+    newHistory.push(entry);
 
     // Limit history to 50 entries
     if (newHistory.length > 50) {
@@ -118,17 +169,30 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undo: () => {
-    const { historyIndex } = get();
+    const { history, historyIndex } = get();
     if (historyIndex >= 0) {
+      const entry = history[historyIndex];
       set({ historyIndex: historyIndex - 1 });
+      return entry;
     }
+    return null;
   },
 
   redo: () => {
     const { history, historyIndex } = get();
     if (historyIndex < history.length - 1) {
+      const entry = history[historyIndex + 1];
       set({ historyIndex: historyIndex + 1 });
+      return entry;
     }
+    return null;
+  },
+
+  canUndo: () => get().historyIndex >= 0,
+
+  canRedo: () => {
+    const { history, historyIndex } = get();
+    return historyIndex < history.length - 1;
   },
 
   resetEditor: () => set(initialState),

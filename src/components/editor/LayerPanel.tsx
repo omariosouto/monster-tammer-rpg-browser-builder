@@ -15,7 +15,7 @@ import { useProjectStore } from "@/store/projectStore";
 
 export function LayerPanel() {
   const [collapsed, setCollapsed] = useState(false);
-  const { activeLayerId, setActiveLayerId } = useEditorStore();
+  const { activeLayerId, setActiveLayerId, pushHistory } = useEditorStore();
   const { project, updateLayer, deleteLayer, addLayer } = useProjectStore();
 
   const currentMap = project?.maps[0];
@@ -29,8 +29,9 @@ export function LayerPanel() {
 
   const handleAddLayer = () => {
     if (currentMap) {
+      const layerId = crypto.randomUUID();
       const newLayer = {
-        id: crypto.randomUUID(),
+        id: layerId,
         name: `Layer ${layers.length + 1}`,
         type: "object" as const,
         visible: true,
@@ -38,12 +39,34 @@ export function LayerPanel() {
         data: new Array(currentMap.width * currentMap.height).fill(0),
       };
       addLayer(currentMap.id, newLayer);
+
+      // Push to history for undo support
+      pushHistory({
+        type: "layer_add",
+        mapId: currentMap.id,
+        layerId,
+      });
     }
   };
 
   const handleDeleteLayer = (layerId: string) => {
     if (currentMap && layers.length > 1) {
+      // Find the layer data before deleting (for undo)
+      const layerToDelete = layers.find((l) => l.id === layerId);
+      const layerIndex = layers.findIndex((l) => l.id === layerId);
+
+      if (layerToDelete) {
+        // Push to history for undo support
+        pushHistory({
+          type: "layer_delete",
+          mapId: currentMap.id,
+          layerData: { ...layerToDelete },
+          index: layerIndex,
+        });
+      }
+
       deleteLayer(currentMap.id, layerId);
+
       if (activeLayerId === layerId) {
         setActiveLayerId(
           layers[0].id === layerId ? layers[1]?.id : layers[0].id,

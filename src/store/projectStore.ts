@@ -103,6 +103,7 @@ interface ProjectState {
   reorderLayers: (mapId: string, layerIds: string[]) => void;
 
   // Tile operations
+  getTileAt: (mapId: string, layerId: string, x: number, y: number) => number;
   setTile: (
     mapId: string,
     layerId: string,
@@ -345,6 +346,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         isDirty: true,
       };
     }),
+
+  getTileAt: (mapId, layerId, x, y) => {
+    const map = get().getMap(mapId);
+    if (!map) return 0;
+
+    const layer = map.layers.find((l) => l.id === layerId);
+    if (!layer) return 0;
+
+    const index = y * map.width + x;
+    if (index < 0 || index >= layer.data.length) return 0;
+
+    return layer.data[index];
+  },
 
   setTile: (mapId, layerId, x, y, tileId) => {
     const map = get().getMap(mapId);

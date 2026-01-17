@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { type EditorTool, useEditorStore } from "@/store/editorStore";
 
 const tools: { id: EditorTool; icon: React.ReactNode; label: string }[] = [
@@ -40,21 +41,9 @@ const tools: { id: EditorTool; icon: React.ReactNode; label: string }[] = [
 ];
 
 export function EditorToolbar() {
-  const {
-    activeTool,
-    setActiveTool,
-    zoom,
-    setZoom,
-    gridVisible,
-    toggleGrid,
-    undo,
-    redo,
-    historyIndex,
-    history,
-  } = useEditorStore();
-
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < history.length - 1;
+  const { activeTool, setActiveTool, zoom, setZoom, gridVisible, toggleGrid } =
+    useEditorStore();
+  const { handleUndo, handleRedo, canUndo, canRedo } = useUndoRedo();
 
   return (
     <header className="h-12 border-b bg-background flex items-center px-2 gap-1">
@@ -82,12 +71,12 @@ export function EditorToolbar() {
                 size="icon"
                 className="h-8 w-8"
                 disabled={!canUndo}
-                onClick={undo}
+                onClick={handleUndo}
               >
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo</TooltipContent>
+            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -97,12 +86,12 @@ export function EditorToolbar() {
                 size="icon"
                 className="h-8 w-8"
                 disabled={!canRedo}
-                onClick={redo}
+                onClick={handleRedo}
               >
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo</TooltipContent>
+            <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
           </Tooltip>
         </div>
 
