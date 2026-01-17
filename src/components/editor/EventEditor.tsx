@@ -1,4 +1,4 @@
-import { Plus, Trash2, Zap } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CommandEditor } from "@/components/editor/CommandEditor";
 import { ConditionEditor } from "@/components/editor/ConditionEditor";
 import { useEditorStore } from "@/store/editorStore";
 import {
-  type CommandType,
   type EventCommand,
   type EventCondition,
   type EventPage,
@@ -41,16 +41,6 @@ const TRIGGERS: { value: EventTrigger; label: string; description: string }[] =
       description: "Runs continuously in background",
     },
   ];
-
-const COMMAND_TYPES: { value: CommandType; label: string }[] = [
-  { value: "showMessage", label: "Show Message" },
-  { value: "showChoices", label: "Show Choices" },
-  { value: "setSwitch", label: "Set Switch" },
-  { value: "setVariable", label: "Set Variable" },
-  { value: "conditional", label: "Conditional Branch" },
-  { value: "teleport", label: "Teleport" },
-  { value: "giveMonster", label: "Give Monster" },
-];
 
 interface EventEditorProps {
   event: {
@@ -182,28 +172,6 @@ export function EventEditor({ event, mapId }: EventEditorProps) {
         c.id === commandId ? { ...c, ...updates } : c,
       ),
     });
-  };
-
-  // Get human-readable command text
-  const getCommandText = (command: EventCommand): string => {
-    switch (command.type) {
-      case "showMessage":
-        return `Message: "${command.message?.slice(0, 20) || "..."}"${(command.message?.length ?? 0) > 20 ? "..." : ""}`;
-      case "showChoices":
-        return `Choices: ${command.choices?.length || 0} options`;
-      case "setSwitch":
-        return `Set Switch [${command.switchId || "?"}] = ${command.switchValue ? "ON" : "OFF"}`;
-      case "setVariable":
-        return `Variable [${command.variableId || "?"}] ${command.variableOp || "="} ${command.variableValue ?? 0}`;
-      case "conditional":
-        return "Conditional Branch";
-      case "teleport":
-        return `Teleport to (${command.teleportX ?? "?"}, ${command.teleportY ?? "?"})`;
-      case "giveMonster":
-        return `Give Monster [${command.monsterId || "?"}] Lv.${command.monsterLevel ?? 5}`;
-      default:
-        return "Unknown command";
-    }
   };
 
   return (
@@ -430,48 +398,19 @@ export function EventEditor({ event, mapId }: EventEditorProps) {
                         No commands
                       </p>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {page.commands.map((command, cmdIndex) => (
-                          <div
+                          <CommandEditor
                             key={command.id}
-                            className="flex items-center gap-1 p-1 bg-muted/50 rounded text-xs"
-                          >
-                            <span className="text-muted-foreground w-4">
-                              {cmdIndex + 1}.
-                            </span>
-                            <Select
-                              value={command.type}
-                              onValueChange={(value: CommandType) =>
-                                handleUpdateCommand(page.id, command.id, {
-                                  type: value,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-6 w-28 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {COMMAND_TYPES.map((ct) => (
-                                  <SelectItem key={ct.value} value={ct.value}>
-                                    {ct.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <span className="flex-1 text-xs truncate">
-                              {getCommandText(command)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0"
-                              onClick={() =>
-                                handleRemoveCommand(page.id, command.id)
-                              }
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                            command={command}
+                            index={cmdIndex}
+                            onUpdate={(updates) =>
+                              handleUpdateCommand(page.id, command.id, updates)
+                            }
+                            onRemove={() =>
+                              handleRemoveCommand(page.id, command.id)
+                            }
+                          />
                         ))}
                       </div>
                     )}
