@@ -370,6 +370,47 @@ export function EditorCanvas() {
     [scaledTileSize, mapWidth, mapHeight],
   );
 
+  // Get pixel coordinates from mouse event
+  const getPixelCoords = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+
+      return { px, py };
+    },
+    [],
+  );
+
+  // Check if pixel coordinates are near the resize handle of an event
+  const isNearResizeHandle = useCallback(
+    (
+      px: number,
+      py: number,
+      event: {
+        position: { x: number; y: number };
+        width: number;
+        height: number;
+      },
+    ) => {
+      const handleSize = 10; // Size of the click area for the handle
+      const eventRight = (event.position.x + event.width) * scaledTileSize;
+      const eventBottom = (event.position.y + event.height) * scaledTileSize;
+
+      // Check if click is within handleSize pixels of the bottom-right corner
+      return (
+        px >= eventRight - handleSize &&
+        px <= eventRight + handleSize / 2 &&
+        py >= eventBottom - handleSize &&
+        py <= eventBottom + handleSize / 2
+      );
+    },
+    [scaledTileSize],
+  );
+
   // Paint or erase at the given coordinates and track the change
   const paintAtCoords = useCallback(
     (x: number, y: number) => {
@@ -470,26 +511,6 @@ export function EditorCanvas() {
     [currentMap],
   );
 
-  // Check if click is on resize handle (only for events larger than 1x1)
-  const isOnResizeHandle = useCallback(
-    (
-      x: number,
-      y: number,
-      event: {
-        position: { x: number; y: number };
-        width: number;
-        height: number;
-      },
-    ) => {
-      // Only show resize handle for events larger than 1x1
-      if (event.width <= 1 && event.height <= 1) return false;
-      const handleX = event.position.x + event.width - 1;
-      const handleY = event.position.y + event.height - 1;
-      return x === handleX && y === handleY;
-    },
-    [],
-  );
-
   // Place a new Event at coordinates
   const placeEvent = useCallback(
     (x: number, y: number) => {
@@ -520,7 +541,8 @@ export function EditorCanvas() {
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getTileCoords(e);
-    if (!coords) return;
+    const pixelCoords = getPixelCoords(e);
+    if (!coords || !pixelCoords) return;
 
     // NPC tool: place or select NPC
     if (activeTool === "npc") {
@@ -541,8 +563,8 @@ export function EditorCanvas() {
     if (activeTool === "event") {
       const existingEvent = findEventAtPosition(coords.x, coords.y);
       if (existingEvent) {
-        // Check if clicking on resize handle
-        if (isOnResizeHandle(coords.x, coords.y, existingEvent)) {
+        // Check if clicking on resize handle (using pixel coordinates)
+        if (isNearResizeHandle(pixelCoords.px, pixelCoords.py, existingEvent)) {
           selectEntity(existingEvent.id, "event");
           isResizingEventRef.current = true;
           draggingEventIdRef.current = existingEvent.id;
@@ -569,10 +591,10 @@ export function EditorCanvas() {
       // Check for Event first (they can be larger)
       const existingEvent = findEventAtPosition(coords.x, coords.y);
       if (existingEvent) {
-        // Check if clicking on resize handle of selected event
+        // Check if clicking on resize handle of selected event (using pixel coordinates)
         if (
           selectedEntityId === existingEvent.id &&
-          isOnResizeHandle(coords.x, coords.y, existingEvent)
+          isNearResizeHandle(pixelCoords.px, pixelCoords.py, existingEvent)
         ) {
           isResizingEventRef.current = true;
           draggingEventIdRef.current = existingEvent.id;
