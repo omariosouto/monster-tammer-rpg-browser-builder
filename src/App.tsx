@@ -1,7 +1,19 @@
+import { useEffect, useState } from "react";
 import { GameCanvas } from "@/components/engine/GameCanvas";
 import { Button } from "@/components/ui/button";
+import { EditorPage } from "@/pages/EditorPage";
+import { useProjectStore } from "@/store/projectStore";
 
-function App() {
+type AppMode = "home" | "editor" | "play";
+
+function HomePage({ onModeChange }: { onModeChange: (mode: AppMode) => void }) {
+  const { createProject } = useProjectStore();
+
+  const handleEditorClick = () => {
+    createProject("New Project");
+    onModeChange("editor");
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-8 p-8">
       <h1 className="text-4xl font-bold text-foreground">
@@ -20,11 +32,33 @@ function App() {
       </p>
 
       <div className="flex gap-4">
-        <Button variant="outline">Editor Mode</Button>
-        <Button variant="secondary">Play Mode</Button>
+        <Button variant="default" onClick={handleEditorClick}>
+          Open Editor
+        </Button>
+        <Button variant="secondary" onClick={() => onModeChange("play")}>
+          Play Mode
+        </Button>
       </div>
     </div>
   );
+}
+
+function App() {
+  const [mode, setMode] = useState<AppMode>("home");
+  const { project } = useProjectStore();
+
+  // If we're in editor mode but no project, go back to home
+  useEffect(() => {
+    if (mode === "editor" && !project) {
+      setMode("home");
+    }
+  }, [mode, project]);
+
+  if (mode === "editor" && project) {
+    return <EditorPage />;
+  }
+
+  return <HomePage onModeChange={setMode} />;
 }
 
 export default App;
